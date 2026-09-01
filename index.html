@@ -13,11 +13,30 @@
     --amber:#B9791E; --amber-pale:#F3E4C8; --rust:#A6452F; --rust-pale:#F1DCD3; --border:#C7CDBB;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:var(--paper);}
-  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px;}
+  body{
+    margin:0;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
+    background-color:var(--paper);
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 28px, 28px 100%;
+    background-position: 0 0, 0 0;
+    background-attachment: fixed;
+  }
+  body::before{content:none;}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px;position:relative;}
 
-  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
-  header.top h1{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:21px;margin:0;}
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px solid var(--ink);padding-bottom:16px;margin-bottom:30px;flex-wrap:wrap;gap:12px;
+    position:relative;
+  }
+  header.top::after{
+    content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--ink);opacity:0.35;
+  }
+  header.top .brand{display:flex;align-items:center;gap:12px;}
+  header.top .brand svg{flex:none;color:var(--teal-dark);}
+  header.top h1{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:21px;margin:0;letter-spacing:-0.01em;}
   header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-top:4px;}
   .conn-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);}
   .conn-status.ok{color:var(--teal-dark);}
@@ -27,9 +46,9 @@
   .month-nav{display:flex;align-items:center;gap:10px;}
   .month-nav button{
     font-family:'IBM Plex Mono',monospace;font-size:14px;background:var(--card);
-    border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);
+    border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
   }
-  .month-nav button:hover{border-color:var(--teal);}
+  .month-nav button:hover{border-color:var(--teal);background:var(--teal-pale);}
   .month-title{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;}
   .view-toggle{display:flex;border:1px solid var(--border);}
   .view-toggle button{
@@ -47,11 +66,17 @@
   }
   .cal-cell{
     min-height:96px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-    padding:6px 6px 8px;background:#fff;cursor:pointer;position:relative;
+    padding:6px 6px 8px;background:#fff;cursor:pointer;position:relative;transition:background .12s ease;
   }
   .cal-cell:hover{background:var(--teal-pale);}
   .cal-cell.other-month{background:var(--paper);color:var(--ink-faint);}
   .cal-cell.today{box-shadow:inset 0 0 0 2px var(--teal);}
+  .cal-cell.today .cal-daynum{color:var(--teal-dark);}
+  .cal-cell.locked{
+    background:repeating-linear-gradient(135deg, var(--paper) 0px, var(--paper) 6px, #E4E7DC 6px, #E4E7DC 7px);
+  }
+  .cal-cell.locked:hover{background:repeating-linear-gradient(135deg, var(--teal-pale) 0px, var(--teal-pale) 6px, #CFE2DB 6px, #CFE2DB 7px);}
+  .cal-cell.locked .cal-daynum{color:var(--ink-faint);}
   .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;}
   .cal-tags{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
   .cal-tag{
@@ -81,15 +106,20 @@
     text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
   }
   .month-heading:first-child{margin-top:0;}
-  .slip{position:relative;background:var(--card);border:1px solid var(--border);margin-bottom:14px;padding:14px 16px 12px;}
+  .slip{position:relative;background:var(--card);border:1px solid var(--border);margin-bottom:14px;padding:14px 16px 12px;box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
   .slip-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;}
   .slip-meta{font-size:13px;color:var(--ink-soft);margin-top:2px;}
   .slip-meta b{color:var(--ink);font-weight:500;}
-  .status-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:3px 9px;white-space:nowrap;cursor:pointer;}
-  .status-badge.a_commander{background:var(--rust-pale);color:#7A2F1E;}
-  .status-badge.commande{background:var(--amber-pale);color:#7A5410;}
-  .status-badge.recu{background:var(--teal-pale);color:var(--teal-dark);}
+  .status-badge{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+    padding:4px 11px;white-space:nowrap;cursor:pointer;text-transform:uppercase;letter-spacing:0.07em;
+    transform:rotate(-2deg);transition:transform .15s ease;display:inline-block;
+  }
+  .status-badge:hover{transform:rotate(0deg);}
+  .status-badge.a_commander{background:transparent;border:1.5px dashed var(--rust);color:var(--rust);}
+  .status-badge.commande{background:var(--amber-pale);border:1.5px solid var(--amber);color:#7A5410;}
+  .status-badge.recu{background:var(--teal-pale);border:2px double var(--teal-dark);color:var(--teal-dark);padding:4px 11px 3px;}
   .items-list{list-style:none;margin:8px 0 0;padding:0;border-top:1px solid var(--paper-line);}
   .items-list li{display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px;border-bottom:1px dotted var(--paper-line);}
   .items-list li .qty{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);font-size:12.5px;margin-left:10px;white-space:nowrap;}
@@ -100,8 +130,10 @@
   .empty{text-align:center;padding:50px 20px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:13px;}
 
   /* Modal */
-  .overlay{position:fixed;inset:0;background:rgba(30,43,36,0.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
-  .modal{background:#fff;border:1px solid var(--border);max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:22px 24px 24px;}
+  .overlay{position:fixed;inset:0;background:rgba(30,43,36,0.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;animation:fadeIn .15s ease;}
+  .modal{background:#fff;border:1px solid var(--border);max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:22px 24px 24px;box-shadow:0 12px 32px rgba(30,43,36,0.18);animation:riseIn .18s ease;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes riseIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
   .modal h2{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin:0 0 4px;text-transform:capitalize;}
   .modal .modal-close{position:absolute;}
   .modal-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:14px;}
@@ -139,9 +171,18 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1>Agenda des commandes — TP SVT/STL</h1>
-      <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12.5 4H17.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M13.2 4V11.8L6.8 22.6C6.1 23.8 6.97 25.3 8.36 25.3H21.64C23.03 25.3 23.9 23.8 23.2 22.6L16.8 11.8V4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M9.8 18.6H20.2" stroke="currentColor" stroke-width="1.4"/>
+        <circle cx="17.3" cy="21.4" r="1" fill="currentColor"/>
+        <circle cx="13.8" cy="22.6" r="0.7" fill="currentColor"/>
+      </svg>
+      <div>
+        <h1>Agenda des commandes — TP SVT/STL</h1>
+        <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
+      </div>
     </div>
     <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
   </header>
@@ -193,6 +234,17 @@ let unsubscribe = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
+
+function minOrderableIso(){
+  const d = new Date();
+  d.setDate(d.getDate() + MIN_LEAD_DAYS);
+  return isoDate(d);
+}
+function isOrderable(iso){
+  return iso >= minOrderableIso();
+}
 
 function pad(n){ return String(n).padStart(2,'0'); }
 function isoDate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
@@ -262,7 +314,7 @@ function renderCalendar(){
     const shown = dayOrders.slice(0,3);
     const extra = dayOrders.length - shown.length;
     html += `
-      <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''}" data-date="${iso}">
+      <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}">
         <div class="cal-daynum">${d.getDate()}</div>
         <div class="cal-tags">
           ${shown.map(o=>`<div class="cal-tag ${o.status}">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`).join('')}
