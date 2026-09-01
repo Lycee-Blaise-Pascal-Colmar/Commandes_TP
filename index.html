@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agenda des commandes TP — Biotechnologies</title>
+<title>Agenda des commandes TP — SVT/STL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -69,8 +69,13 @@
   }
 
   /* List / agenda view */
-  .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .agenda-filters select{font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 8px;border:1px solid var(--border);background:var(--card);}
+  .download-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 12px;
+    border:1px solid var(--teal-dark);background:var(--teal-dark);color:#fff;cursor:pointer;margin-left:auto;
+  }
+  .download-btn:hover{background:var(--teal);}
   .month-heading{
     font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--ink-soft);
     text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
@@ -107,6 +112,7 @@
 
   label{display:block;font-size:12px;color:var(--ink-soft);margin:0 0 4px;font-family:'IBM Plex Mono',monospace;}
   .field{margin-bottom:12px;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   input[type=text],input[type=number],select,textarea{
     width:100%;border:1px solid var(--border);background:#fff;padding:8px 9px;font-size:14px;
     font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
@@ -134,7 +140,7 @@
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>Agenda des commandes — TP biotechnologies</h1>
+      <h1>Agenda des commandes — TP SVT/STL</h1>
       <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
     </div>
     <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
@@ -259,7 +265,7 @@ function renderCalendar(){
       <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''}" data-date="${iso}">
         <div class="cal-daynum">${d.getDate()}</div>
         <div class="cal-tags">
-          ${shown.map(o=>`<div class="cal-tag ${o.status}">${escapeHtml(o.prof)}</div>`).join('')}
+          ${shown.map(o=>`<div class="cal-tag ${o.status}">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
       </div>`;
@@ -271,14 +277,19 @@ function renderCalendar(){
 
 function renderAgenda(){
   const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
+  const classes = Array.from(new Set(orders.map(o=>o.classe).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr'));
   const statusVal = window._agendaStatusFilter || 'toutes';
   const profVal = window._agendaProfFilter || 'tous';
+  const classeVal = window._agendaClasseFilter || 'toutes';
 
   let list = orders.filter(o=>{
     if(statusVal!=='toutes' && o.status!==statusVal) return false;
     if(profVal!=='tous' && o.prof!==profVal) return false;
+    if(classeVal!=='toutes' && o.classe!==classeVal) return false;
     return true;
   }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  window._agendaCurrentList = list;
 
   let filtersHtml = `
     <div class="agenda-filters">
@@ -292,6 +303,11 @@ function renderAgenda(){
         <option value="tous">Tous les professeurs</option>
         ${profs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
       </select>
+      <select id="agenda-classe">
+        <option value="toutes">Toutes les classes</option>
+        ${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+      </select>
+      <button type="button" class="download-btn" id="download-csv">⬇ Télécharger (${list.length})</button>
     </div>`;
 
   let body;
@@ -315,8 +331,8 @@ function renderSlip(o){
     <div class="slip">
       <div class="slip-head">
         <div>
-          <div class="slip-date">${capitalize(fmtDateLong(o.date))}</div>
-          <div class="slip-meta"><b>${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}</div>
+          <div class="slip-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
+          <div class="slip-meta"><b>${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
         <div class="status-badge ${o.status}" data-action="cycle-status" data-id="${o.id}" title="Cliquer pour changer le statut">${statusLabel(o.status)}</div>
       </div>
@@ -339,6 +355,15 @@ function attachContentHandlers(){
   if(profSel){
     profSel.value = window._agendaProfFilter || 'tous';
     profSel.addEventListener('change', e=>{ window._agendaProfFilter = e.target.value; render(); });
+  }
+  const classeSel = document.getElementById('agenda-classe');
+  if(classeSel){
+    classeSel.value = window._agendaClasseFilter || 'toutes';
+    classeSel.addEventListener('change', e=>{ window._agendaClasseFilter = e.target.value; render(); });
+  }
+  const downloadBtn = document.getElementById('download-csv');
+  if(downloadBtn){
+    downloadBtn.addEventListener('click', ()=> downloadCsv(window._agendaCurrentList || []));
   }
   document.querySelectorAll('[data-action="cycle-status"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -381,6 +406,16 @@ function openDayModal(iso){
             <label for="f-classe">Classe / groupe</label>
             <input type="text" id="f-classe" placeholder="Ex. 1ère STL, TP Biochimie">
           </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-horaire">Horaire</label>
+              <input type="text" id="f-horaire" placeholder="Ex. 8h-10h">
+            </div>
+            <div class="field">
+              <label for="f-salle">Salle</label>
+              <input type="text" id="f-salle" placeholder="Ex. Labo 2">
+            </div>
+          </div>
           <div class="field">
             <label>Matériel nécessaire</label>
             <div id="items-container"></div>
@@ -388,7 +423,7 @@ function openDayModal(iso){
           </div>
           <div class="field">
             <label for="f-notes">Remarques (optionnel)</label>
-            <textarea id="f-notes" placeholder="Précisions, contraintes, salle…"></textarea>
+            <textarea id="f-notes" placeholder="Précisions, contraintes particulières…"></textarea>
           </div>
           <div id="form-err" class="err" style="display:none;"></div>
           <button type="submit" class="submit-btn">Déposer la commande</button>
@@ -427,6 +462,8 @@ function openDayModal(iso){
 
     const prof = document.getElementById('f-prof').value.trim();
     const classe = document.getElementById('f-classe').value.trim();
+    const horaire = document.getElementById('f-horaire').value.trim();
+    const salle = document.getElementById('f-salle').value.trim();
     const notes = document.getElementById('f-notes').value.trim();
 
     if(!prof){
@@ -451,7 +488,7 @@ function openDayModal(iso){
 
     try{
       await ordersCol.add({
-        prof, date: iso, classe, items, notes,
+        prof, date: iso, classe, horaire, salle, items, notes,
         status: 'a_commander',
         createdAt: Date.now()
       });
@@ -478,6 +515,45 @@ function addModalItemRow(){
 }
 
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+function csvEscape(v){
+  const s = String(v==null?'':v);
+  if(/[";\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function downloadCsv(list){
+  if(!list || list.length===0){
+    alert("Aucune commande à télécharger avec ces filtres.");
+    return;
+  }
+  const headers = ['Date','Horaire','Salle','Professeur','Classe','Matériel','Quantité','Unité','Statut','Remarques'];
+  const rows = [headers];
+
+  list.forEach(o=>{
+    const base = [o.date, o.horaire||'', o.salle||'', o.prof||'', o.classe||''];
+    const statut = statusLabel(o.status);
+    if(o.items && o.items.length){
+      o.items.forEach(it=>{
+        rows.push([...base, it.name, it.qty, it.unit, statut, o.notes||'']);
+      });
+    }else{
+      rows.push([...base, '', '', '', statut, o.notes||'']);
+    }
+  });
+
+  const csvContent = rows.map(r=>r.map(csvEscape).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `commandes-tp-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 /* ---------- Nav ---------- */
 document.getElementById('prev-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()-1); render(); });
