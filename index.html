@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda des commandes TP — Biotechnologies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDEFE9; --paper-line:#D6DACC; --ink:#1E2B24; --ink-soft:#52604F; --ink-faint:#8A9184;
+    --card:#F7F8F3; --teal:#2F6B5E; --teal-dark:#1F4A40; --teal-pale:#DCEAE5;
+    --amber:#B9791E; --amber-pale:#F3E4C8; --rust:#A6452F; --rust-pale:#F1DCD3; --border:#C7CDBB;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:var(--paper);}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px;}
+
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+  header.top h1{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:21px;margin:0;}
+  header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .conn-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);}
+  .conn-status.ok{color:var(--teal-dark);}
+  .conn-status.err{color:var(--rust);}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+  .month-nav{display:flex;align-items:center;gap:10px;}
+  .month-nav button{
+    font-family:'IBM Plex Mono',monospace;font-size:14px;background:var(--card);
+    border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);
+  }
+  .month-nav button:hover{border-color:var(--teal);}
+  .month-title{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;}
+  .view-toggle{display:flex;border:1px solid var(--border);}
+  .view-toggle button{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--card);
+    border:none;padding:7px 14px;cursor:pointer;color:var(--ink-soft);
+  }
+  .view-toggle button.active{background:var(--teal-dark);color:#fff;}
+
+  /* Calendar */
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--border);border-top:1px solid var(--border);}
+  .cal-dow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;
+    color:var(--ink-soft);padding:6px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    background:var(--card);
+  }
+  .cal-cell{
+    min-height:96px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    padding:6px 6px 8px;background:#fff;cursor:pointer;position:relative;
+  }
+  .cal-cell:hover{background:var(--teal-pale);}
+  .cal-cell.other-month{background:var(--paper);color:var(--ink-faint);}
+  .cal-cell.today{box-shadow:inset 0 0 0 2px var(--teal);}
+  .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;}
+  .cal-tags{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
+  .cal-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:2px 5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid transparent;
+  }
+  .cal-tag.a_commander{background:var(--rust-pale);border-color:var(--rust);color:#7A2F1E;}
+  .cal-tag.commande{background:var(--amber-pale);border-color:var(--amber);color:#7A5410;}
+  .cal-tag.recu{background:var(--teal-pale);border-color:var(--teal);color:var(--teal-dark);}
+  .cal-more{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint);margin-top:2px;}
+
+  @media (max-width:700px){
+    .cal-cell{min-height:64px;padding:4px;}
+    .cal-tag{font-size:9px;}
+  }
+
+  /* List / agenda view */
+  .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .agenda-filters select{font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 8px;border:1px solid var(--border);background:var(--card);}
+  .month-heading{
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
+  }
+  .month-heading:first-child{margin-top:0;}
+  .slip{position:relative;background:var(--card);border:1px solid var(--border);margin-bottom:14px;padding:14px 16px 12px;}
+  .slip-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
+  .slip-date{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;}
+  .slip-meta{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+  .slip-meta b{color:var(--ink);font-weight:500;}
+  .status-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:3px 9px;white-space:nowrap;cursor:pointer;}
+  .status-badge.a_commander{background:var(--rust-pale);color:#7A2F1E;}
+  .status-badge.commande{background:var(--amber-pale);color:#7A5410;}
+  .status-badge.recu{background:var(--teal-pale);color:var(--teal-dark);}
+  .items-list{list-style:none;margin:8px 0 0;padding:0;border-top:1px solid var(--paper-line);}
+  .items-list li{display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px;border-bottom:1px dotted var(--paper-line);}
+  .items-list li .qty{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);font-size:12.5px;margin-left:10px;white-space:nowrap;}
+  .notes{margin-top:8px;font-size:13px;color:var(--ink-soft);font-style:italic;}
+  .slip-actions{margin-top:10px;display:flex;gap:14px;}
+  .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);padding:0;}
+  .slip-actions button:hover{color:var(--rust);}
+  .empty{text-align:center;padding:50px 20px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:13px;}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(30,43,36,0.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .modal{background:#fff;border:1px solid var(--border);max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:22px 24px 24px;}
+  .modal h2{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin:0 0 4px;text-transform:capitalize;}
+  .modal .modal-close{position:absolute;}
+  .modal-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:14px;}
+  .close-btn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-faint);line-height:1;}
+  .close-btn:hover{color:var(--rust);}
+  .modal-section-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.04em;margin:18px 0 8px;}
+  .modal-section-label:first-of-type{margin-top:0;}
+
+  label{display:block;font-size:12px;color:var(--ink-soft);margin:0 0 4px;font-family:'IBM Plex Mono',monospace;}
+  .field{margin-bottom:12px;}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;border:1px solid var(--border);background:#fff;padding:8px 9px;font-size:14px;
+    font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);}
+  textarea{resize:vertical;min-height:48px;}
+  .item-row{display:grid;grid-template-columns:1fr 58px 78px 24px;gap:6px;margin-bottom:6px;align-items:center;}
+  .item-row input{padding:7px 8px;font-size:13px;}
+  .item-row button{background:none;border:none;color:var(--rust);cursor:pointer;font-size:15px;padding:4px;}
+  .add-item-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal-dark);background:none;
+    border:1px dashed var(--border);padding:6px 10px;cursor:pointer;width:100%;margin-top:2px;
+  }
+  .add-item-btn:hover{border-color:var(--teal);}
+  .submit-btn{
+    width:100%;margin-top:12px;background:var(--teal-dark);color:#fff;border:none;padding:11px;
+    font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:500;cursor:pointer;
+  }
+  .submit-btn:hover{background:var(--teal);}
+  .err{color:var(--rust);font-size:12px;margin:-6px 0 8px;font-family:'IBM Plex Mono',monospace;}
+  .loading{text-align:center;padding:40px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Agenda des commandes — TP biotechnologies</h1>
+      <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
+    </div>
+    <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="month-nav">
+      <button id="prev-month">‹</button>
+      <div class="month-title" id="month-title"></div>
+      <button id="next-month">›</button>
+      <button id="today-btn">Aujourd'hui</button>
+    </div>
+    <div class="view-toggle">
+      <button id="view-cal" class="active">Calendrier</button>
+      <button id="view-agenda">Vue d'ensemble</button>
+    </div>
+  </div>
+
+  <div id="content"><div class="loading">Chargement…</div></div>
+</div>
+
+<div id="modal-root"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+/* =========================================================================
+   1) CONFIGURATION FIREBASE — À REMPLIR
+   Remplacez les valeurs ci-dessous par celles de votre projet Firebase
+   (Console Firebase > Paramètres du projet > Vos applications > SDK config).
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBRWvbqlOgNPKXEXM4leK9ysRYp-TQ30TI",
+  authDomain: "commandes-tp.firebaseapp.com",
+  projectId: "commandes-tp",
+  storageBucket: "commandes-tp.firebasestorage.app",
+  messagingSenderId: "85014859128",
+  appId: "1:85014859128:web:7f7b4c137224ba015f4c8d"
+};
+/* ========================================================================= */
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ordersCol = db.collection('commandes');
+
+let orders = [];
+let currentView = 'cal';
+let cursor = new Date(); cursor.setDate(1);
+let unsubscribe = null;
+
+const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
+const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function isoDate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayIso(){ return isoDate(new Date()); }
+
+function connectRealtime(){
+  const statusEl = document.getElementById('conn-status');
+  if(unsubscribe) unsubscribe();
+  unsubscribe = ordersCol.onSnapshot(
+    snap=>{
+      orders = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      statusEl.textContent = 'Connecté — mise à jour en temps réel';
+      statusEl.className = 'conn-status ok';
+      render();
+    },
+    err=>{
+      console.error(err);
+      statusEl.textContent = 'Connexion Firebase impossible — vérifiez firebaseConfig et les règles Firestore';
+      statusEl.className = 'conn-status err';
+      document.getElementById('content').innerHTML = '<div class="empty">Impossible de charger les commandes.<br>Vérifiez la configuration Firebase dans index.html.</div>';
+    }
+  );
+}
+
+function fmtMonthTitle(d){
+  return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+}
+function fmtDateLong(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function fmtMonthKey(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+}
+function statusLabel(s){ return {a_commander:'À commander',commande:'Commandé',recu:'Reçu'}[s]||s; }
+function nextStatus(s){ return {a_commander:'commande',commande:'recu',recu:'a_commander'}[s]; }
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function ordersByDate(iso){
+  return orders.filter(o=>o.date===iso).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+}
+
+function render(){
+  document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
+  document.getElementById('content').innerHTML = currentView==='cal' ? renderCalendar() : renderAgenda();
+  attachContentHandlers();
+}
+
+function renderCalendar(){
+  const year = cursor.getFullYear(), month = cursor.getMonth();
+  const firstOfMonth = new Date(year,month,1);
+  let startOffset = firstOfMonth.getDay(); // 0=Sun
+  startOffset = (startOffset+6)%7; // convert to Mon=0
+  const startDate = new Date(year,month,1-startOffset);
+  const today = todayIso();
+
+  let html = '<div class="cal-grid">';
+  DOW.forEach(d=> html += `<div class="cal-dow">${d}</div>`);
+
+  for(let i=0;i<42;i++){
+    const d = new Date(startDate); d.setDate(startDate.getDate()+i);
+    const iso = isoDate(d);
+    const inMonth = d.getMonth()===month;
+    const dayOrders = ordersByDate(iso);
+    const shown = dayOrders.slice(0,3);
+    const extra = dayOrders.length - shown.length;
+    html += `
+      <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''}" data-date="${iso}">
+        <div class="cal-daynum">${d.getDate()}</div>
+        <div class="cal-tags">
+          ${shown.map(o=>`<div class="cal-tag ${o.status}">${escapeHtml(o.prof)}</div>`).join('')}
+          ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
+        </div>
+      </div>`;
+    if(i===41 && d < new Date(year,month+1,0)) { /* ensure full last week shown, loop caps at 42 anyway */ }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderAgenda(){
+  const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
+  const statusVal = window._agendaStatusFilter || 'toutes';
+  const profVal = window._agendaProfFilter || 'tous';
+
+  let list = orders.filter(o=>{
+    if(statusVal!=='toutes' && o.status!==statusVal) return false;
+    if(profVal!=='tous' && o.prof!==profVal) return false;
+    return true;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  let filtersHtml = `
+    <div class="agenda-filters">
+      <select id="agenda-status">
+        <option value="toutes">Tous les statuts</option>
+        <option value="a_commander">À commander</option>
+        <option value="commande">Commandé</option>
+        <option value="recu">Reçu</option>
+      </select>
+      <select id="agenda-prof">
+        <option value="tous">Tous les professeurs</option>
+        ${profs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+      </select>
+    </div>`;
+
+  let body;
+  if(list.length===0){
+    body = '<div class="empty">Aucune commande ne correspond à ces filtres.</div>';
+  }else{
+    body = '';
+    let currentMonth = null;
+    for(const o of list){
+      const mk = fmtMonthKey(o.date);
+      if(mk!==currentMonth){ body += `<div class="month-heading">${mk}</div>`; currentMonth = mk; }
+      body += renderSlip(o);
+    }
+  }
+  return filtersHtml + body;
+}
+
+function renderSlip(o){
+  const itemsHtml = (o.items||[]).map(it=>`<li><span>${escapeHtml(it.name)}</span><span class="qty">${it.qty} ${escapeHtml(it.unit)}</span></li>`).join('');
+  return `
+    <div class="slip">
+      <div class="slip-head">
+        <div>
+          <div class="slip-date">${capitalize(fmtDateLong(o.date))}</div>
+          <div class="slip-meta"><b>${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}</div>
+        </div>
+        <div class="status-badge ${o.status}" data-action="cycle-status" data-id="${o.id}" title="Cliquer pour changer le statut">${statusLabel(o.status)}</div>
+      </div>
+      ${itemsHtml?`<ul class="items-list">${itemsHtml}</ul>`:''}
+      ${o.notes?`<div class="notes">${escapeHtml(o.notes)}</div>`:''}
+      <div class="slip-actions"><button data-action="delete" data-id="${o.id}">supprimer</button></div>
+    </div>`;
+}
+
+function attachContentHandlers(){
+  document.querySelectorAll('.cal-cell').forEach(cell=>{
+    cell.addEventListener('click', ()=> openDayModal(cell.getAttribute('data-date')));
+  });
+  const statusSel = document.getElementById('agenda-status');
+  if(statusSel){
+    statusSel.value = window._agendaStatusFilter || 'toutes';
+    statusSel.addEventListener('change', e=>{ window._agendaStatusFilter = e.target.value; render(); });
+  }
+  const profSel = document.getElementById('agenda-prof');
+  if(profSel){
+    profSel.value = window._agendaProfFilter || 'tous';
+    profSel.addEventListener('change', e=>{ window._agendaProfFilter = e.target.value; render(); });
+  }
+  document.querySelectorAll('[data-action="cycle-status"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) await ordersCol.doc(o.id).update({status: nextStatus(o.status)});
+    });
+  });
+  document.querySelectorAll('[data-action="delete"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(confirm('Supprimer définitivement cette commande ?')){
+        await ordersCol.doc(el.getAttribute('data-id')).delete();
+      }
+    });
+  });
+}
+
+/* ---------- Day modal (add / view orders for a given day) ---------- */
+let modalItemRowCount = 0;
+
+function openDayModal(iso){
+  const root = document.getElementById('modal-root');
+  const dayOrders = ordersByDate(iso);
+  root.innerHTML = `
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <div class="modal-top">
+          <h2>${capitalize(fmtDateLong(iso))}</h2>
+          <button class="close-btn" id="close-modal">✕</button>
+        </div>
+
+        ${dayOrders.length ? `<div class="modal-section-label">Commandes déjà déposées</div>${dayOrders.map(renderSlip).join('')}` : ''}
+
+        <div class="modal-section-label">Déposer une commande</div>
+        <form id="order-form">
+          <div class="field">
+            <label for="f-prof">Professeur</label>
+            <input type="text" id="f-prof" placeholder="Nom du professeur" required>
+          </div>
+          <div class="field">
+            <label for="f-classe">Classe / groupe</label>
+            <input type="text" id="f-classe" placeholder="Ex. 1ère STL, TP Biochimie">
+          </div>
+          <div class="field">
+            <label>Matériel nécessaire</label>
+            <div id="items-container"></div>
+            <button type="button" class="add-item-btn" id="add-item-btn">+ ajouter une ligne</button>
+          </div>
+          <div class="field">
+            <label for="f-notes">Remarques (optionnel)</label>
+            <textarea id="f-notes" placeholder="Précisions, contraintes, salle…"></textarea>
+          </div>
+          <div id="form-err" class="err" style="display:none;"></div>
+          <button type="submit" class="submit-btn">Déposer la commande</button>
+        </form>
+      </div>
+    </div>
+  `;
+
+  modalItemRowCount = 0;
+  addModalItemRow(); addModalItemRow();
+
+  document.getElementById('close-modal').addEventListener('click', closeModal);
+  document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+  document.getElementById('add-item-btn').addEventListener('click', ()=> addModalItemRow());
+
+  root.querySelectorAll('[data-action="cycle-status"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) await ordersCol.doc(o.id).update({status: nextStatus(o.status)});
+      openDayModal(iso);
+    });
+  });
+  root.querySelectorAll('[data-action="delete"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(confirm('Supprimer définitivement cette commande ?')){
+        await ordersCol.doc(el.getAttribute('data-id')).delete();
+        openDayModal(iso);
+      }
+    });
+  });
+
+  document.getElementById('order-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('form-err');
+    errEl.style.display = 'none';
+
+    const prof = document.getElementById('f-prof').value.trim();
+    const classe = document.getElementById('f-classe').value.trim();
+    const notes = document.getElementById('f-notes').value.trim();
+
+    if(!prof){
+      errEl.textContent = 'Indiquez votre nom.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const items = [];
+    document.querySelectorAll('#items-container .item-row').forEach(row=>{
+      const name = row.querySelector('.it-name').value.trim();
+      const qty = row.querySelector('.it-qty').value;
+      const unit = row.querySelector('.it-unit').value;
+      if(name) items.push({name, qty: qty?Number(qty):1, unit});
+    });
+
+    if(items.length===0){
+      errEl.textContent = 'Ajoutez au moins un élément de matériel.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    try{
+      await ordersCol.add({
+        prof, date: iso, classe, items, notes,
+        status: 'a_commander',
+        createdAt: Date.now()
+      });
+      openDayModal(iso);
+    }catch(err){
+      errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
+      errEl.style.display = 'block';
+    }
+  });
+}
+
+function addModalItemRow(){
+  const id = 'mitem-' + (modalItemRowCount++);
+  const container = document.getElementById('items-container');
+  const row = document.createElement('div');
+  row.className = 'item-row'; row.id = id;
+  row.innerHTML = `
+    <input type="text" placeholder="Nom du matériel" class="it-name">
+    <input type="number" min="0" step="1" placeholder="Qté" class="it-qty">
+    <select class="it-unit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
+    <button type="button">✕</button>`;
+  container.appendChild(row);
+  row.querySelector('button').addEventListener('click', ()=> row.remove());
+}
+
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+/* ---------- Nav ---------- */
+document.getElementById('prev-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()-1); render(); });
+document.getElementById('next-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()+1); render(); });
+document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = new Date(); cursor.setDate(1); render(); });
+document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
+document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
+function setActiveView(){
+  document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
+  document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
+}
+
+connectRealtime();
+</script>
+</body>
+</html>
