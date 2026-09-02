@@ -587,6 +587,7 @@ function renderSlip(o){
       ${o.notes?`<div class="notes">${escapeHtml(o.notes)}</div>`:''}
       <div class="slip-actions">
         <button data-action="print" data-id="${o.id}">imprimer</button>
+        <button data-action="duplicate" data-id="${o.id}">dupliquer</button>
         <button data-action="delete" data-id="${o.id}">supprimer</button>
       </div>
     </div>`;
@@ -614,6 +615,12 @@ function attachContentHandlers(){
     el.addEventListener('click', ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
       if(o) printOrder(o);
+    });
+  });
+  document.querySelectorAll('[data-action="duplicate"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openDuplicateModal(o);
     });
   });
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
@@ -860,6 +867,12 @@ function openDayModal(iso){
       if(o) printOrder(o);
     });
   });
+  root.querySelectorAll('[data-action="duplicate"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openDuplicateModal(o);
+    });
+  });
 
   document.getElementById('f-prof').addEventListener('change', (e)=>{
     document.getElementById('f-prof-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
@@ -960,6 +973,79 @@ function updateMaterielDatalist(){
 }
 
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+function suggestNextYearIso(iso){
+  const d = new Date(iso+'T00:00:00');
+  d.setFullYear(d.getFullYear()+1);
+  return isoDate(d);
+}
+
+function openDuplicateModal(o){
+  const existing = document.getElementById('duplicate-overlay');
+  if(existing) existing.remove();
+  const suggested = suggestNextYearIso(o.date);
+  const div = document.createElement('div');
+  div.className = 'overlay';
+  div.id = 'duplicate-overlay';
+  div.innerHTML = `
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-top">
+        <h2>Dupliquer la commande</h2>
+        <div class="modal-top-actions">
+          <button class="close-btn" id="dup-close">✕</button>
+        </div>
+      </div>
+      <div class="slip-meta" style="margin-bottom:14px;">${escapeHtml(o.prof)}${o.classe?' · '+escapeHtml(o.classe):''} — commande du ${fmtDateLong(o.date)}</div>
+      <form id="dup-form">
+        <div class="field">
+          <label for="dup-date">Nouvelle date</label>
+          <input type="date" id="dup-date" value="${suggested}" required>
+        </div>
+        <div id="dup-err" class="err" style="display:none;"></div>
+        <button type="submit" class="submit-btn">Dupliquer la commande</button>
+      </form>
+    </div>`;
+  document.body.appendChild(div);
+
+  const close = ()=> div.remove();
+  document.getElementById('dup-close').addEventListener('click', close);
+  div.addEventListener('click', e=>{ if(e.target===div) close(); });
+
+  document.getElementById('dup-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('dup-err');
+    errEl.style.display = 'none';
+    const newDate = document.getElementById('dup-date').value;
+    if(!newDate){
+      errEl.textContent = 'Choisissez une date.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const submitBtn = div.querySelector('.submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Duplication en cours…';
+    try{
+      await createOrderAndDeductStock({
+        prof: o.prof,
+        date: newDate,
+        classe: o.classe || '',
+        horaire: o.horaire || '',
+        salle: o.salle || '',
+        items: (o.items||[]).map(it=>({ name: it.name, qty: it.qty, unit: it.unit })),
+        notes: o.notes || ''
+      });
+      close();
+      cursor = new Date(newDate+'T00:00:00'); cursor.setDate(1);
+      if(document.getElementById('modal-root').innerHTML) closeModal();
+      render();
+    }catch(err){
+      errEl.textContent = "La duplication a échoué. Vérifiez la connexion et réessayez.";
+      errEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Dupliquer la commande';
+    }
+  });
+}
 
 function printOrderSlipHtml(o){
   const itemsHtml = (o.items||[]).map(it=>`<tr><td>${escapeHtml(it.name)}</td><td>${it.qty} ${escapeHtml(it.unit||'')}</td></tr>`).join('');
