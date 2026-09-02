@@ -87,6 +87,7 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--teal);
     background:var(--teal-pale);color:var(--teal-dark);
   }
+  .cal-tag.prepared{opacity:.55;text-decoration:line-through;}
   .cal-more{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint);margin-top:2px;}
 
   @media (max-width:700px){
@@ -530,7 +531,7 @@ function renderCalendar(){
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            return `<div class="cal-tag" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
