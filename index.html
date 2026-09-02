@@ -81,11 +81,9 @@
   .cal-tags{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
   .cal-tag{
     font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:2px 5px;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid transparent;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--teal);
+    background:var(--teal-pale);color:var(--teal-dark);
   }
-  .cal-tag.a_commander{background:var(--rust-pale);border-color:var(--rust);color:#7A2F1E;}
-  .cal-tag.commande{background:var(--amber-pale);border-color:var(--amber);color:#7A5410;}
-  .cal-tag.recu{background:var(--teal-pale);border-color:var(--teal);color:var(--teal-dark);}
   .cal-more{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint);margin-top:2px;}
 
   @media (max-width:700px){
@@ -111,15 +109,6 @@
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;}
   .slip-meta{font-size:13px;color:var(--ink-soft);margin-top:2px;}
   .slip-meta b{color:var(--ink);font-weight:500;}
-  .status-badge{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
-    padding:4px 11px;white-space:nowrap;cursor:pointer;text-transform:uppercase;letter-spacing:0.07em;
-    transform:rotate(-2deg);transition:transform .15s ease;display:inline-block;
-  }
-  .status-badge:hover{transform:rotate(0deg);}
-  .status-badge.a_commander{background:transparent;border:1.5px dashed var(--rust);color:var(--rust);}
-  .status-badge.commande{background:var(--amber-pale);border:1.5px solid var(--amber);color:#7A5410;}
-  .status-badge.recu{background:var(--teal-pale);border:2px double var(--teal-dark);color:var(--teal-dark);padding:4px 11px 3px;}
   .items-list{list-style:none;margin:8px 0 0;padding:0;border-top:1px solid var(--paper-line);}
   .items-list li{display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px;border-bottom:1px dotted var(--paper-line);}
   .items-list li .qty{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);font-size:12.5px;margin-left:10px;white-space:nowrap;}
@@ -166,6 +155,51 @@
   .submit-btn:hover{background:var(--teal);}
   .err{color:var(--rust);font-size:12px;margin:-6px 0 8px;font-family:'IBM Plex Mono',monospace;}
   .loading{text-align:center;padding:40px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:13px;}
+
+  /* Catalogue */
+  .cat-intro{font-size:13.5px;color:var(--ink-soft);max-width:640px;margin-bottom:18px;line-height:1.5;}
+  .cat-list{border:1px solid var(--border);background:var(--card);box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
+  .cat-row{
+    display:grid;grid-template-columns:1fr 140px 150px;gap:10px;align-items:center;
+    padding:10px 14px;border-bottom:1px solid var(--paper-line);
+  }
+  .cat-row:last-child{border-bottom:none;}
+  .cat-row.cat-head{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;
+    color:var(--ink-soft);background:transparent;border-bottom:1px solid var(--border);padding:8px 14px;
+  }
+  .cat-name{font-size:14px;}
+  .cat-qty{font-family:'IBM Plex Mono',monospace;font-size:13.5px;}
+  .qty-negative{color:var(--rust);font-weight:600;}
+  .cat-unit{color:var(--ink-soft);font-size:12px;}
+  .cat-actions{display:flex;gap:12px;justify-content:flex-end;}
+  .cat-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);padding:0;}
+  .cat-actions button:hover{color:var(--teal-dark);}
+  .cat-actions button[data-action="delete-cat"]:hover{color:var(--rust);}
+  .cat-add{margin-top:26px;max-width:640px;}
+  .field-row-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
+  .cat-import{margin-top:24px;max-width:640px;padding:14px 16px;background:var(--card);border:1px solid var(--border);}
+  .cat-import-help{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.5;}
+  .cat-import-help code{font-family:'IBM Plex Mono',monospace;background:var(--paper);padding:1px 4px;}
+  .cat-import textarea{font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  .cat-import-actions{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;}
+  .file-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);
+    border:1px solid var(--border);padding:6px 10px;cursor:pointer;background:#fff;
+  }
+  .file-btn:hover{border-color:var(--teal);color:var(--teal-dark);}
+  #import-preview{margin-top:12px;}
+  .import-summary{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;}
+  .import-list{list-style:none;margin:0 0 10px;padding:0;max-height:220px;overflow-y:auto;border-top:1px solid var(--paper-line);}
+  .import-list li{padding:5px 0;font-size:13px;border-bottom:1px dotted var(--paper-line);}
+  .import-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--amber);border:1px solid var(--amber);padding:1px 5px;margin-left:6px;}
+  #cancel-import-btn{width:auto;flex:none;}
+  #confirm-import-btn{width:auto;flex:none;margin-top:0;}
+  @media (max-width:640px){
+    .cat-row{grid-template-columns:1fr 90px;}
+    .cat-row .cat-actions{grid-column:1 / -1;justify-content:flex-start;}
+    .field-row-3{grid-template-columns:1fr;}
+  }
 </style>
 </head>
 <body>
@@ -197,6 +231,7 @@
     <div class="view-toggle">
       <button id="view-cal" class="active">Calendrier</button>
       <button id="view-agenda">Vue d'ensemble</button>
+      <button id="view-catalogue">Catalogue</button>
     </div>
   </div>
 
@@ -226,9 +261,13 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const ordersCol = db.collection('commandes');
+const catalogueCol = db.collection('catalogue');
 
 let orders = [];
+let catalogue = [];
 let currentView = 'cal';
+let importTextValue = '';
+let importPreviewRows = null;
 let cursor = new Date(); cursor.setDate(1);
 let unsubscribe = null;
 
@@ -267,6 +306,14 @@ function connectRealtime(){
       document.getElementById('content').innerHTML = '<div class="empty">Impossible de charger les commandes.<br>Vérifiez la configuration Firebase dans index.html.</div>';
     }
   );
+  catalogueCol.orderBy('nom').onSnapshot(
+    snap=>{
+      catalogue = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      if(currentView==='catalogue') render();
+      updateMaterielDatalist();
+    },
+    err=>{ console.error('Erreur catalogue:', err); }
+  );
 }
 
 function fmtMonthTitle(d){
@@ -280,8 +327,57 @@ function fmtMonthKey(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 }
-function statusLabel(s){ return {a_commander:'À commander',commande:'Commandé',recu:'Reçu'}[s]||s; }
-function nextStatus(s){ return {a_commander:'commande',commande:'recu',recu:'a_commander'}[s]; }
+function findCatalogueMatch(itemName){
+  return catalogue.find(c=>c.nom.toLowerCase()===String(itemName||'').trim().toLowerCase());
+}
+
+function resolveItemRefs(items){
+  return (items||[]).map(it=>{
+    const match = findCatalogueMatch(it.name);
+    return match ? { ref: catalogueCol.doc(match.id), qty: Number(it.qty)||0 } : null;
+  }).filter(Boolean);
+}
+
+// Enregistre une nouvelle commande et décompte immédiatement le matériel correspondant du stock du catalogue.
+async function createOrderAndDeductStock(orderData){
+  const itemRefs = resolveItemRefs(orderData.items);
+  const newOrderRef = ordersCol.doc();
+  await db.runTransaction(async (tx)=>{
+    const reads = await Promise.all(itemRefs.map(ir=>tx.get(ir.ref)));
+    reads.forEach((snap, idx)=>{
+      if(!snap.exists) return;
+      const current = snap.data().quantite;
+      const newQty = (current!=null ? current : 0) - itemRefs[idx].qty;
+      tx.update(itemRefs[idx].ref, { quantite:newQty, updatedAt: Date.now() });
+    });
+    tx.set(newOrderRef, { ...orderData, stockDeducted:true, createdAt: Date.now() });
+  });
+}
+
+// Supprime une commande en restituant le stock déjà décompté, le cas échéant.
+async function deleteOrderAndRestoreStock(order){
+  if(!order.stockDeducted){
+    try{ await ordersCol.doc(order.id).delete(); }
+    catch(err){ console.error(err); alert("La suppression a échoué. Réessayez."); }
+    return;
+  }
+  const itemRefs = resolveItemRefs(order.items);
+  try{
+    await db.runTransaction(async (tx)=>{
+      const reads = await Promise.all(itemRefs.map(ir=>tx.get(ir.ref)));
+      reads.forEach((snap, idx)=>{
+        if(!snap.exists) return;
+        const current = snap.data().quantite;
+        const newQty = (current!=null ? current : 0) + itemRefs[idx].qty;
+        tx.update(itemRefs[idx].ref, { quantite:newQty, updatedAt: Date.now() });
+      });
+      tx.delete(ordersCol.doc(order.id));
+    });
+  }catch(err){
+    console.error(err);
+    alert("La suppression a échoué. Réessayez.");
+  }
+}
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -291,7 +387,15 @@ function ordersByDate(iso){
 
 function render(){
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
-  document.getElementById('content').innerHTML = currentView==='cal' ? renderCalendar() : renderAgenda();
+  document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
+  document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
+  document.getElementById('next-month').style.display = currentView==='cal' ? '' : 'none';
+  document.getElementById('today-btn').style.display = currentView==='cal' ? '' : 'none';
+  let html;
+  if(currentView==='cal') html = renderCalendar();
+  else if(currentView==='agenda') html = renderAgenda();
+  else html = renderCatalogue();
+  document.getElementById('content').innerHTML = html;
   attachContentHandlers();
 }
 
@@ -317,7 +421,7 @@ function renderCalendar(){
       <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}">
         <div class="cal-daynum">${d.getDate()}</div>
         <div class="cal-tags">
-          ${shown.map(o=>`<div class="cal-tag ${o.status}">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`).join('')}
+          ${shown.map(o=>`<div class="cal-tag">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
       </div>`;
@@ -330,12 +434,10 @@ function renderCalendar(){
 function renderAgenda(){
   const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
   const classes = Array.from(new Set(orders.map(o=>o.classe).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr'));
-  const statusVal = window._agendaStatusFilter || 'toutes';
   const profVal = window._agendaProfFilter || 'tous';
   const classeVal = window._agendaClasseFilter || 'toutes';
 
   let list = orders.filter(o=>{
-    if(statusVal!=='toutes' && o.status!==statusVal) return false;
     if(profVal!=='tous' && o.prof!==profVal) return false;
     if(classeVal!=='toutes' && o.classe!==classeVal) return false;
     return true;
@@ -345,12 +447,6 @@ function renderAgenda(){
 
   let filtersHtml = `
     <div class="agenda-filters">
-      <select id="agenda-status">
-        <option value="toutes">Tous les statuts</option>
-        <option value="a_commander">À commander</option>
-        <option value="commande">Commandé</option>
-        <option value="recu">Reçu</option>
-      </select>
       <select id="agenda-prof">
         <option value="tous">Tous les professeurs</option>
         ${profs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
@@ -377,6 +473,97 @@ function renderAgenda(){
   return filtersHtml + body;
 }
 
+function renderCatalogue(){
+  const items = [...catalogue].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const rows = items.length ? items.map(it=>`
+    <div class="cat-row" data-id="${it.id}">
+      <div class="cat-name">${escapeHtml(it.nom)}</div>
+      <div class="cat-qty"><span class="qty-view ${it.quantite!=null && it.quantite<0 ? 'qty-negative' : ''}">${it.quantite!=null && it.quantite!==''?it.quantite:'—'}</span> <span class="cat-unit">${escapeHtml(it.unite||'')}</span></div>
+      <div class="cat-actions">
+        <button type="button" data-action="restock-cat" data-id="${it.id}">+ réapprovisionner</button>
+        <button type="button" data-action="edit-cat" data-id="${it.id}">corriger</button>
+        <button type="button" data-action="delete-cat" data-id="${it.id}">supprimer</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Le catalogue est vide pour le moment. Ajoutez le premier article ci-dessous.</div>';
+
+  return `
+    <div class="cat-wrap">
+      <div class="cat-intro">Liste commune du matériel disponible au laboratoire. Chaque collègue peut ajouter, corriger ou mettre à jour une quantité — ce catalogue alimente ensuite les suggestions dans le formulaire de commande.</div>
+      <div class="cat-list">
+        <div class="cat-row cat-head">
+          <div class="cat-name">Article</div>
+          <div class="cat-qty">Quantité</div>
+          <div class="cat-actions"></div>
+        </div>
+        ${rows}
+      </div>
+
+      <div class="cat-import">
+        <div class="modal-section-label">Importer plusieurs articles d'un coup</div>
+        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Un article par ligne, au format <code>nom ; quantité ; unité</code> — les deux derniers sont facultatifs.</div>
+        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce&#10;Bécher 250 mL;12&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
+        <div class="cat-import-actions">
+          <label class="file-btn">Choisir un fichier
+            <input type="file" id="import-file" accept=".csv,.txt" hidden>
+          </label>
+          <button type="button" class="add-item-btn" id="analyse-import-btn">Analyser la liste</button>
+        </div>
+        <div id="import-preview">${importPreviewRows ? renderImportPreview(importPreviewRows) : ''}</div>
+      </div>
+
+      <div class="cat-add">
+        <div class="modal-section-label">Ajouter un article au catalogue</div>
+        <form id="cat-form">
+          <div class="field-row-3">
+            <div class="field">
+              <label for="c-nom">Nom du matériel</label>
+              <input type="text" id="c-nom" placeholder="Ex. Lame de microscope" required>
+            </div>
+            <div class="field">
+              <label for="c-qty">Quantité disponible</label>
+              <input type="number" id="c-qty" min="0" step="1" placeholder="Ex. 50">
+            </div>
+            <div class="field">
+              <label for="c-unit">Unité</label>
+              <select id="c-unit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
+            </div>
+          </div>
+          <div id="cat-err" class="err" style="display:none;"></div>
+          <button type="submit" class="submit-btn">Ajouter au catalogue</button>
+        </form>
+      </div>
+    </div>`;
+}
+
+function parseImportText(text){
+  return text.split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{
+    const parts = line.includes('\t') ? line.split('\t') : line.includes(';') ? line.split(';') : line.split(',');
+    const nom = (parts[0]||'').trim();
+    let quantite = parts[1]!==undefined ? parts[1].trim().replace(',','.') : '';
+    quantite = quantite!=='' && !isNaN(Number(quantite)) ? Number(quantite) : null;
+    const unite = (parts[2]||'').trim();
+    return { nom, quantite, unite };
+  }).filter(r=> r.nom && !['nom','article','matériel','materiel'].includes(r.nom.toLowerCase()));
+}
+
+function renderImportPreview(rows){
+  if(!rows.length) return '<div class="err" style="display:block;">Aucun article valide détecté dans le texte fourni.</div>';
+  const existingNames = new Set(catalogue.map(c=>c.nom.toLowerCase()));
+  const nbNew = rows.filter(r=>!existingNames.has(r.nom.toLowerCase())).length;
+  const nbMaj = rows.length - nbNew;
+  return `
+    <div class="import-summary">${rows.length} article${rows.length>1?'s':''} détecté${rows.length>1?'s':''} — ${nbNew} nouveau${nbNew>1?'x':''}, ${nbMaj} mise${nbMaj>1?'s':''} à jour.</div>
+    <ul class="import-list">
+      ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}${existingNames.has(r.nom.toLowerCase())?' <span class="import-tag">mise à jour</span>':''}</li>`).join('')}
+      ${rows.length>40?`<li>… et ${rows.length-40} de plus</li>`:''}
+    </ul>
+    <div class="cat-import-actions">
+      <button type="button" class="submit-btn" id="confirm-import-btn">Confirmer l'import (${rows.length})</button>
+      <button type="button" class="add-item-btn" id="cancel-import-btn">Annuler</button>
+    </div>
+  `;
+}
+
 function renderSlip(o){
   const itemsHtml = (o.items||[]).map(it=>`<li><span>${escapeHtml(it.name)}</span><span class="qty">${it.qty} ${escapeHtml(it.unit)}</span></li>`).join('');
   return `
@@ -386,7 +573,6 @@ function renderSlip(o){
           <div class="slip-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
           <div class="slip-meta"><b>${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
-        <div class="status-badge ${o.status}" data-action="cycle-status" data-id="${o.id}" title="Cliquer pour changer le statut">${statusLabel(o.status)}</div>
       </div>
       ${itemsHtml?`<ul class="items-list">${itemsHtml}</ul>`:''}
       ${o.notes?`<div class="notes">${escapeHtml(o.notes)}</div>`:''}
@@ -398,11 +584,6 @@ function attachContentHandlers(){
   document.querySelectorAll('.cal-cell').forEach(cell=>{
     cell.addEventListener('click', ()=> openDayModal(cell.getAttribute('data-date')));
   });
-  const statusSel = document.getElementById('agenda-status');
-  if(statusSel){
-    statusSel.value = window._agendaStatusFilter || 'toutes';
-    statusSel.addEventListener('change', e=>{ window._agendaStatusFilter = e.target.value; render(); });
-  }
   const profSel = document.getElementById('agenda-prof');
   if(profSel){
     profSel.value = window._agendaProfFilter || 'tous';
@@ -417,19 +598,161 @@ function attachContentHandlers(){
   if(downloadBtn){
     downloadBtn.addEventListener('click', ()=> downloadCsv(window._agendaCurrentList || []));
   }
-  document.querySelectorAll('[data-action="cycle-status"]').forEach(el=>{
-    el.addEventListener('click', async ()=>{
-      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o) await ordersCol.doc(o.id).update({status: nextStatus(o.status)});
-    });
-  });
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
-      if(confirm('Supprimer définitivement cette commande ?')){
-        await ordersCol.doc(el.getAttribute('data-id')).delete();
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o && confirm(o.stockDeducted ? 'Supprimer cette commande ? Le matériel déjà décompté sera restitué au stock.' : 'Supprimer définitivement cette commande ?')){
+        await deleteOrderAndRestoreStock(o);
       }
     });
   });
+
+  const catForm = document.getElementById('cat-form');
+  if(catForm){
+    catForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const errEl = document.getElementById('cat-err');
+      errEl.style.display = 'none';
+      const nom = document.getElementById('c-nom').value.trim();
+      const qty = document.getElementById('c-qty').value;
+      const unite = document.getElementById('c-unit').value;
+      if(!nom){
+        errEl.textContent = 'Indiquez le nom du matériel.';
+        errEl.style.display = 'block';
+        return;
+      }
+      const doublon = catalogue.find(it=>it.nom.toLowerCase()===nom.toLowerCase());
+      if(doublon){
+        errEl.textContent = 'Cet article existe déjà dans le catalogue. Utilisez « modifier » pour ajuster sa quantité.';
+        errEl.style.display = 'block';
+        return;
+      }
+      try{
+        await catalogueCol.add({ nom, quantite: qty!==''?Number(qty):null, unite, updatedAt: Date.now() });
+        catForm.reset();
+      }catch(err){
+        errEl.textContent = "L'ajout a échoué. Vérifiez la connexion et réessayez.";
+        errEl.style.display = 'block';
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-action="restock-cat"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
+      if(!it) return;
+      const recu = prompt(`Quantité reçue à ajouter au stock de « ${it.nom} » (${it.unite||'unité'}) :\nStock actuel : ${it.quantite!=null?it.quantite:0}`, '');
+      if(recu===null) return;
+      const val = Number(recu.trim().replace(',','.'));
+      if(!recu.trim() || isNaN(val)){
+        alert("Indiquez un nombre valide.");
+        return;
+      }
+      try{
+        await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) + val, updatedAt: Date.now() });
+      }catch(err){
+        alert("Le réapprovisionnement a échoué. Vérifiez la connexion et réessayez.");
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="edit-cat"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
+      if(!it) return;
+      const nouvelleQte = prompt(`Corriger la quantité exacte pour « ${it.nom} » (${it.unite||'unité'}), par exemple après un inventaire :`, it.quantite!=null?it.quantite:'');
+      if(nouvelleQte===null) return;
+      const val = nouvelleQte.trim();
+      try{
+        await catalogueCol.doc(it.id).update({ quantite: val!==''?Number(val):null, updatedAt: Date.now() });
+      }catch(err){
+        alert("La mise à jour a échoué. Vérifiez la connexion et réessayez.");
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="delete-cat"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
+      if(it && confirm(`Supprimer « ${it.nom} » du catalogue ?`)){
+        await catalogueCol.doc(it.id).delete();
+      }
+    });
+  });
+
+  const importTextarea = document.getElementById('import-text');
+  if(importTextarea){
+    importTextarea.addEventListener('input', e=>{ importTextValue = e.target.value; });
+  }
+  const importFile = document.getElementById('import-file');
+  if(importFile){
+    importFile.addEventListener('change', ()=>{
+      const file = importFile.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        importTextValue = reader.result;
+        importPreviewRows = null;
+        render();
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+  const analyseBtn = document.getElementById('analyse-import-btn');
+  if(analyseBtn){
+    analyseBtn.addEventListener('click', ()=>{
+      importTextValue = document.getElementById('import-text').value;
+      importPreviewRows = parseImportText(importTextValue);
+      render();
+    });
+  }
+  const confirmImportBtn = document.getElementById('confirm-import-btn');
+  if(confirmImportBtn){
+    confirmImportBtn.addEventListener('click', async ()=>{
+      confirmImportBtn.disabled = true;
+      confirmImportBtn.textContent = 'Import en cours…';
+      try{
+        await importCatalogueRows(importPreviewRows);
+        importPreviewRows = null;
+        importTextValue = '';
+        render();
+      }catch(err){
+        alert("L'import a échoué. Vérifiez la connexion et réessayez.");
+        confirmImportBtn.disabled = false;
+      }
+    });
+  }
+  const cancelImportBtn = document.getElementById('cancel-import-btn');
+  if(cancelImportBtn){
+    cancelImportBtn.addEventListener('click', ()=>{
+      importPreviewRows = null;
+      render();
+    });
+  }
+}
+
+async function importCatalogueRows(rows){
+  const existingByName = new Map(catalogue.map(c=>[c.nom.toLowerCase(), c]));
+  const chunks = [];
+  for(let i=0;i<rows.length;i+=400) chunks.push(rows.slice(i,i+400)); // limite de sécurité par lot Firestore (500 max)
+
+  for(const chunk of chunks){
+    const batch = db.batch();
+    chunk.forEach(r=>{
+      const existing = existingByName.get(r.nom.toLowerCase());
+      if(existing){
+        batch.update(catalogueCol.doc(existing.id), {
+          quantite: r.quantite!=null ? r.quantite : existing.quantite,
+          unite: r.unite || existing.unite || '',
+          updatedAt: Date.now()
+        });
+      }else{
+        const ref = catalogueCol.doc();
+        batch.set(ref, { nom: r.nom, quantite: r.quantite, unite: r.unite||'', updatedAt: Date.now() });
+      }
+    });
+    await batch.commit();
+  }
 }
 
 /* ---------- Day modal (add / view orders for a given day) ---------- */
@@ -491,17 +814,11 @@ function openDayModal(iso){
   document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
   document.getElementById('add-item-btn').addEventListener('click', ()=> addModalItemRow());
 
-  root.querySelectorAll('[data-action="cycle-status"]').forEach(el=>{
-    el.addEventListener('click', async ()=>{
-      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o) await ordersCol.doc(o.id).update({status: nextStatus(o.status)});
-      openDayModal(iso);
-    });
-  });
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
-      if(confirm('Supprimer définitivement cette commande ?')){
-        await ordersCol.doc(el.getAttribute('data-id')).delete();
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o && confirm(o.stockDeducted ? 'Supprimer cette commande ? Le matériel déjà décompté sera restitué au stock.' : 'Supprimer définitivement cette commande ?')){
+        await deleteOrderAndRestoreStock(o);
         openDayModal(iso);
       }
     });
@@ -539,11 +856,7 @@ function openDayModal(iso){
     }
 
     try{
-      await ordersCol.add({
-        prof, date: iso, classe, horaire, salle, items, notes,
-        status: 'a_commander',
-        createdAt: Date.now()
-      });
+      await createOrderAndDeductStock({ prof, date: iso, classe, horaire, salle, items, notes });
       openDayModal(iso);
     }catch(err){
       errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
@@ -558,12 +871,32 @@ function addModalItemRow(){
   const row = document.createElement('div');
   row.className = 'item-row'; row.id = id;
   row.innerHTML = `
-    <input type="text" placeholder="Nom du matériel" class="it-name">
+    <input type="text" placeholder="Nom du matériel" class="it-name" list="materiel-catalogue">
     <input type="number" min="0" step="1" placeholder="Qté" class="it-qty">
     <select class="it-unit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
     <button type="button">✕</button>`;
   container.appendChild(row);
   row.querySelector('button').addEventListener('click', ()=> row.remove());
+  const nameInput = row.querySelector('.it-name');
+  const unitSelect = row.querySelector('.it-unit');
+  nameInput.addEventListener('input', ()=>{
+    const match = catalogue.find(it=>it.nom.toLowerCase()===nameInput.value.trim().toLowerCase());
+    if(match && match.unite) unitSelect.value = match.unite;
+  });
+}
+
+function updateMaterielDatalist(){
+  let dl = document.getElementById('materiel-catalogue');
+  if(!dl){
+    dl = document.createElement('datalist');
+    dl.id = 'materiel-catalogue';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = catalogue
+    .slice()
+    .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
+    .map(it=>`<option value="${escapeHtml(it.nom)}">${it.quantite!=null?it.quantite+' '+escapeHtml(it.unite||'')+' en stock':''}</option>`)
+    .join('');
 }
 
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
@@ -579,18 +912,17 @@ function downloadCsv(list){
     alert("Aucune commande à télécharger avec ces filtres.");
     return;
   }
-  const headers = ['Date','Horaire','Salle','Professeur','Classe','Matériel','Quantité','Unité','Statut','Remarques'];
+  const headers = ['Date','Horaire','Salle','Professeur','Classe','Matériel','Quantité','Unité','Remarques'];
   const rows = [headers];
 
   list.forEach(o=>{
     const base = [o.date, o.horaire||'', o.salle||'', o.prof||'', o.classe||''];
-    const statut = statusLabel(o.status);
     if(o.items && o.items.length){
       o.items.forEach(it=>{
-        rows.push([...base, it.name, it.qty, it.unit, statut, o.notes||'']);
+        rows.push([...base, it.name, it.qty, it.unit, o.notes||'']);
       });
     }else{
-      rows.push([...base, '', '', '', statut, o.notes||'']);
+      rows.push([...base, '', '', '', o.notes||'']);
     }
   });
 
@@ -613,9 +945,11 @@ document.getElementById('next-month').addEventListener('click', ()=>{ cursor.set
 document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = new Date(); cursor.setDate(1); render(); });
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
 document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
+document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
   document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
+  document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
 }
 
 connectRealtime();
