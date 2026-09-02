@@ -286,6 +286,9 @@ let unsubscribe = null;
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CLASSES = ['SVT seconde','SVT première','SVT terminale','Biozone','Enseignement scientifique','BPH première','BPH terminale','Biotech 1STL','Biotech TSTL','Bio-bio 1STL','Biotech seconde'];
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
+const SALLES = ['A128','A130','A132','A134','A138','A142'];
+const CLASSES_SORTED = [...CLASSES].sort((a,b)=>a.localeCompare(b,'fr'));
+const PROFS_SORTED = [...PROFS].sort((a,b)=>a.localeCompare(b,'fr'));
 const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
 const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
@@ -470,7 +473,7 @@ function renderAgenda(){
   let filtersHtml = `
     <div class="agenda-filters">
       <select id="agenda-prof">
-        <option value="tous">Tous les professeurs</option>
+        <option value="tous">Tous les enseignants</option>
         ${profs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
       </select>
       <select id="agenda-classe">
@@ -913,19 +916,19 @@ function openDayModal(iso){
         <div class="modal-section-label">Déposer une commande</div>
         <form id="order-form">
           <div class="field">
-            <label for="f-prof">Professeur</label>
+            <label for="f-prof">Enseignant</label>
             <select id="f-prof" required>
               <option value="" disabled selected>Sélectionner…</option>
-              ${PROFS.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+              ${PROFS_SORTED.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
               <option value="__autre__">Autre (préciser)</option>
             </select>
-            <input type="text" id="f-prof-autre" placeholder="Nom du professeur" style="display:none;margin-top:6px;">
+            <input type="text" id="f-prof-autre" placeholder="Nom de l'enseignant" style="display:none;margin-top:6px;">
           </div>
           <div class="field">
             <label for="f-classe">Classe</label>
             <select id="f-classe">
               <option value="">Sélectionner une classe (facultatif)</option>
-              ${CLASSES.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+              ${CLASSES_SORTED.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
               <option value="__autre__">Autre (préciser)</option>
             </select>
             <input type="text" id="f-classe-autre" placeholder="Précisez la classe" style="display:none;margin-top:6px;">
@@ -943,7 +946,12 @@ function openDayModal(iso){
             </div>
             <div class="field">
               <label for="f-salle">Salle</label>
-              <input type="text" id="f-salle" placeholder="Ex. Labo 2">
+              <select id="f-salle">
+                <option value="">Sélectionner une salle (facultatif)</option>
+                ${SALLES.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                <option value="__autre__">Autre (préciser)</option>
+              </select>
+              <input type="text" id="f-salle-autre" placeholder="Précisez la salle" style="display:none;margin-top:6px;">
             </div>
           </div>
           <div class="field">
@@ -977,6 +985,9 @@ function openDayModal(iso){
     updateProtocoleOptions(e.target.value);
   });
   updateProtocoleOptions(document.getElementById('f-classe').value);
+  document.getElementById('f-salle').addEventListener('change', (e)=>{
+    document.getElementById('f-salle-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+  });
 
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -998,7 +1009,8 @@ function openDayModal(iso){
     const classeSel = document.getElementById('f-classe').value;
     const classe = classeSel==='__autre__' ? document.getElementById('f-classe-autre').value.trim() : classeSel;
     const horaire = document.getElementById('f-horaire').value.trim();
-    const salle = document.getElementById('f-salle').value.trim();
+    const salleSel = document.getElementById('f-salle').value;
+    const salle = salleSel==='__autre__' ? document.getElementById('f-salle-autre').value.trim() : salleSel;
     const notes = document.getElementById('f-notes').value.trim();
     const protocoleId = document.getElementById('f-protocole').value;
     const protocole = protocoleId ? protocoles.find(p=>p.id===protocoleId) : null;
@@ -1102,7 +1114,7 @@ function downloadCsv(list){
     alert("Aucune commande à télécharger avec ces filtres.");
     return;
   }
-  const headers = ['Date','Horaire','Salle','Professeur','Classe','Matériel','Quantité','Unité','Remarques'];
+  const headers = ['Date','Horaire','Salle','Enseignant','Classe','Matériel','Quantité','Unité','Remarques'];
   const rows = [headers];
 
   list.forEach(o=>{
