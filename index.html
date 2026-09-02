@@ -116,6 +116,7 @@
   .slip-actions{margin-top:10px;display:flex;gap:14px;}
   .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);padding:0;}
   .slip-actions button:hover{color:var(--rust);}
+  .slip-actions button[data-action="duplicate"]:hover{color:var(--teal-dark);}
   .empty{text-align:center;padding:50px 20px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:13px;}
 
   /* Modal */
@@ -208,6 +209,22 @@
     .cat-row .cat-actions{grid-column:1 / -1;justify-content:flex-start;}
     .field-row-3{grid-template-columns:1fr;}
   }
+  #print-area{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #print-area, #print-area *{visibility:visible;}
+    #print-area{
+      display:block !important;position:absolute;left:0;top:0;width:100%;
+      font-family:'IBM Plex Sans',sans-serif;color:#000;background:#fff;padding:20px;
+    }
+    #print-area h1{font-family:'IBM Plex Mono',monospace;font-size:20px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
+    #print-area .print-order{border-bottom:1px solid #999;padding:10px 0;page-break-inside:avoid;}
+    #print-area .print-order h2{font-size:15px;margin:0 0 4px;}
+    #print-area .print-order .meta{font-size:12.5px;color:#333;margin-bottom:6px;}
+    #print-area ul{margin:4px 0 6px;padding-left:18px;}
+    #print-area li{font-size:13px;margin-bottom:2px;}
+    #print-area .print-notes{font-size:12.5px;font-style:italic;color:#333;}
+  }
 </style>
 </head>
 <body>
@@ -248,6 +265,7 @@
 </div>
 
 <div id="modal-root"></div>
+<div id="print-area"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
@@ -675,7 +693,10 @@ function renderSlip(o){
       ${itemsHtml?`<ul class="items-list">${itemsHtml}</ul>`:''}
       ${o.protocoleTitre?`<div class="notes">Protocole : <a href="${escapeHtml(o.protocoleLien)}" target="_blank" rel="noopener">${escapeHtml(o.protocoleTitre)}</a></div>`:''}
       ${o.notes?`<div class="notes">${escapeHtml(o.notes)}</div>`:''}
-      <div class="slip-actions"><button data-action="delete" data-id="${o.id}">supprimer</button></div>
+      <div class="slip-actions">
+        <button type="button" data-action="duplicate" data-id="${o.id}">dupliquer</button>
+        <button data-action="delete" data-id="${o.id}">supprimer</button>
+      </div>
     </div>`;
 }
 
@@ -703,6 +724,12 @@ function attachContentHandlers(){
       if(o && confirm(o.stockDeducted ? 'Supprimer cette commande ? Le matériel déjà décompté sera restitué au stock.' : 'Supprimer définitivement cette commande ?')){
         await deleteOrderAndRestoreStock(o);
       }
+    });
+  });
+  document.querySelectorAll('[data-action="duplicate"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openDuplicateModal(o);
     });
   });
 
@@ -912,6 +939,7 @@ function openDayModal(iso){
         </div>
 
         ${dayOrders.length ? `<div class="modal-section-label">Commandes déjà déposées</div>${dayOrders.map(renderSlip).join('')}` : ''}
+        ${dayOrders.length ? `<button type="button" class="add-item-btn" id="print-day-btn">🖶 Imprimer cette journée</button>` : ''}
 
         <div class="modal-section-label">Déposer une commande</div>
         <form id="order-form">
@@ -976,6 +1004,10 @@ function openDayModal(iso){
   document.getElementById('close-modal').addEventListener('click', closeModal);
   document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
   document.getElementById('add-item-btn').addEventListener('click', ()=> addModalItemRow());
+  const printBtn = document.getElementById('print-day-btn');
+  if(printBtn){
+    printBtn.addEventListener('click', ()=> printDay(iso));
+  }
 
   document.getElementById('f-prof').addEventListener('change', (e)=>{
     document.getElementById('f-prof-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
@@ -996,6 +1028,12 @@ function openDayModal(iso){
         await deleteOrderAndRestoreStock(o);
         openDayModal(iso);
       }
+    });
+  });
+  root.querySelectorAll('[data-action="duplicate"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openDuplicateModal(o);
     });
   });
 
@@ -1101,7 +1139,75 @@ function updateMaterielDatalist(){
     .join('');
 }
 
+function printDay(iso){
+  const dayOrders = ordersByDate(iso);
+  const area = document.getElementById('print-area');
+  area.innerHTML = `
+    <h1>${capitalize(fmtDateLong(iso))}</h1>
+    ${dayOrders.map(o=>`
+      <div class="print-order">
+        <h2>${escapeHtml(o.prof)}${o.classe?' — '+escapeHtml(o.classe):''}</h2>
+        <div class="meta">${o.horaire?'Horaire : '+escapeHtml(o.horaire)+'  ':''}${o.salle?'Salle : '+escapeHtml(o.salle):''}</div>
+        ${(o.items&&o.items.length) ? `<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>` : ''}
+        ${o.protocoleTitre?`<div class="meta">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`:''}
+        ${o.notes?`<div class="print-notes">${escapeHtml(o.notes)}</div>`:''}
+      </div>
+    `).join('')}
+  `;
+  window.print();
+}
+
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+function addOneYear(iso){
+  const d = new Date(iso+'T00:00:00');
+  d.setFullYear(d.getFullYear()+1);
+  return isoDate(d);
+}
+
+function openDuplicateModal(order){
+  const root = document.getElementById('modal-root');
+  const suggested = addOneYear(order.date);
+  root.innerHTML = `
+    <div class="overlay" id="dup-overlay">
+      <div class="modal">
+        <div class="modal-top">
+          <h2>Dupliquer la commande</h2>
+          <button class="close-btn" id="dup-close">✕</button>
+        </div>
+        <div class="cat-intro">« ${escapeHtml((order.items||[]).map(it=>it.name).join(', ') || 'Commande')} » — ${escapeHtml(order.prof)}${order.classe?' · '+escapeHtml(order.classe):''}. Choisissez la nouvelle date du TP ; tout le reste (matériel, horaire, salle, protocole) sera repris à l'identique.</div>
+        <div class="field">
+          <label for="dup-date">Nouvelle date</label>
+          <input type="date" id="dup-date" value="${suggested}">
+        </div>
+        <div id="dup-err" class="err" style="display:none;"></div>
+        <button type="button" class="submit-btn" id="dup-confirm">Dupliquer vers cette date</button>
+      </div>
+    </div>`;
+
+  document.getElementById('dup-close').addEventListener('click', closeModal);
+  document.getElementById('dup-overlay').addEventListener('click', e=>{ if(e.target.id==='dup-overlay') closeModal(); });
+  document.getElementById('dup-confirm').addEventListener('click', async ()=>{
+    const errEl = document.getElementById('dup-err');
+    const newDate = document.getElementById('dup-date').value;
+    if(!newDate){
+      errEl.textContent = 'Choisissez une date.';
+      errEl.style.display = 'block';
+      return;
+    }
+    try{
+      await createOrderAndDeductStock({
+        prof: order.prof, date: newDate, classe: order.classe||'', horaire: order.horaire||'',
+        salle: order.salle||'', items: order.items||[], notes: order.notes||'',
+        protocoleTitre: order.protocoleTitre||null, protocoleLien: order.protocoleLien||null
+      });
+      closeModal();
+    }catch(err){
+      errEl.textContent = "La duplication a échoué. Vérifiez la connexion et réessayez.";
+      errEl.style.display = 'block';
+    }
+  });
+}
 
 function csvEscape(v){
   const s = String(v==null?'':v);
