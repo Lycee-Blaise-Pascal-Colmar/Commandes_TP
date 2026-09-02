@@ -113,6 +113,10 @@
   .items-list li{display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px;border-bottom:1px dotted var(--paper-line);}
   .items-list li .qty{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);font-size:12.5px;margin-left:10px;white-space:nowrap;}
   .notes{margin-top:8px;font-size:13px;color:var(--ink-soft);font-style:italic;}
+  .slip-prepare{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);cursor:pointer;user-select:none;white-space:nowrap;flex:none;}
+  .slip-prepare input{width:15px;height:15px;cursor:pointer;accent-color:var(--teal-dark);}
+  .slip.prepared{border-left:4px solid var(--teal-dark);}
+  .slip.prepared .slip-prepare{color:var(--teal-dark);font-weight:600;}
   .slip-actions{margin-top:10px;display:flex;gap:14px;}
   .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);padding:0;}
   .slip-actions button:hover{color:var(--rust);}
@@ -683,12 +687,16 @@ function renderImportPreview(rows){
 function renderSlip(o){
   const itemsHtml = (o.items||[]).map(it=>`<li><span>${escapeHtml(it.name)}</span><span class="qty">${it.qty} ${escapeHtml(it.unit)}</span></li>`).join('');
   return `
-    <div class="slip">
+    <div class="slip ${o.prepared?'prepared':''}">
       <div class="slip-head">
         <div>
           <div class="slip-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
           <div class="slip-meta"><b>${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
+        <label class="slip-prepare">
+          <input type="checkbox" data-action="toggle-prepared" data-id="${o.id}" ${o.prepared?'checked':''}>
+          Préparé
+        </label>
       </div>
       ${itemsHtml?`<ul class="items-list">${itemsHtml}</ul>`:''}
       ${o.protocoleTitre?`<div class="notes">Protocole : <a href="${escapeHtml(o.protocoleLien)}" target="_blank" rel="noopener">${escapeHtml(o.protocoleTitre)}</a></div>`:''}
@@ -700,7 +708,29 @@ function renderSlip(o){
     </div>`;
 }
 
+function attachPrepareHandlers(root){
+  (root||document).querySelectorAll('[data-action="toggle-prepared"]').forEach(el=>{
+    el.addEventListener('change', async ()=>{
+      const id = el.getAttribute('data-id');
+      const checked = el.checked;
+      el.closest('.slip').classList.toggle('prepared', checked);
+      el.disabled = true;
+      try{
+        await ordersCol.doc(id).update({ prepared: checked });
+      }catch(err){
+        console.error(err);
+        el.checked = !checked;
+        el.closest('.slip').classList.toggle('prepared', !checked);
+        alert("La mise à jour a échoué. Réessayez.");
+      }finally{
+        el.disabled = false;
+      }
+    });
+  });
+}
+
 function attachContentHandlers(){
+  attachPrepareHandlers();
   document.querySelectorAll('.cal-cell').forEach(cell=>{
     cell.addEventListener('click', ()=> openDayModal(cell.getAttribute('data-date')));
   });
@@ -786,11 +816,13 @@ function attachContentHandlers(){
     el.addEventListener('click', async ()=>{
       const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
       if(!it) return;
-      const nouvelleQte = prompt(`Corriger la quantité exacte pour « ${it.nom} » (${it.unite||'unité'}), par exemple après un inventaire :`, it.quantite!=null?it.quantite:'');
+      const nouvelleQte = prompt(`Corriger la quantité exacte pour « ${it.nom} », par exemple après un inventaire :`, it.quantite!=null?it.quantite:'');
       if(nouvelleQte===null) return;
+      const nouvelleUnite = prompt(`Unité pour « ${it.nom} » (ex. boîtes, tubes, mL…) :`, it.unite||'');
+      if(nouvelleUnite===null) return;
       const val = nouvelleQte.trim();
       try{
-        await catalogueCol.doc(it.id).update({ quantite: val!==''?Number(val):null, updatedAt: Date.now() });
+        await catalogueCol.doc(it.id).update({ quantite: val!==''?Number(val):null, unite: nouvelleUnite.trim(), updatedAt: Date.now() });
       }catch(err){
         alert("La mise à jour a échoué. Vérifiez la connexion et réessayez.");
       }
@@ -1036,6 +1068,7 @@ function openDayModal(iso){
       if(o) openDuplicateModal(o);
     });
   });
+  attachPrepareHandlers(root);
 
   document.getElementById('order-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
