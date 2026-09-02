@@ -272,6 +272,8 @@ let cursor = new Date(); cursor.setDate(1);
 let unsubscribe = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
+const CLASSES = ['SVT seconde','SVT première','SVT terminale','Biozone','Enseignement scientifique','BPH première','BPH terminale','Biotech 1STL','Biotech TSTL','Bio-bio 1STL','Biotech seconde'];
+const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
 const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
 const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
@@ -775,11 +777,21 @@ function openDayModal(iso){
         <form id="order-form">
           <div class="field">
             <label for="f-prof">Professeur</label>
-            <input type="text" id="f-prof" placeholder="Nom du professeur" required>
+            <select id="f-prof" required>
+              <option value="" disabled selected>Sélectionner…</option>
+              ${PROFS.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+              <option value="__autre__">Autre (préciser)</option>
+            </select>
+            <input type="text" id="f-prof-autre" placeholder="Nom du professeur" style="display:none;margin-top:6px;">
           </div>
           <div class="field">
-            <label for="f-classe">Classe / groupe</label>
-            <input type="text" id="f-classe" placeholder="Ex. 1ère STL, TP Biochimie">
+            <label for="f-classe">Classe</label>
+            <select id="f-classe">
+              <option value="">Sélectionner une classe (facultatif)</option>
+              ${CLASSES.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+              <option value="__autre__">Autre (préciser)</option>
+            </select>
+            <input type="text" id="f-classe-autre" placeholder="Précisez la classe" style="display:none;margin-top:6px;">
           </div>
           <div class="field-row">
             <div class="field">
@@ -814,6 +826,13 @@ function openDayModal(iso){
   document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
   document.getElementById('add-item-btn').addEventListener('click', ()=> addModalItemRow());
 
+  document.getElementById('f-prof').addEventListener('change', (e)=>{
+    document.getElementById('f-prof-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+  });
+  document.getElementById('f-classe').addEventListener('change', (e)=>{
+    document.getElementById('f-classe-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+  });
+
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
@@ -829,8 +848,10 @@ function openDayModal(iso){
     const errEl = document.getElementById('form-err');
     errEl.style.display = 'none';
 
-    const prof = document.getElementById('f-prof').value.trim();
-    const classe = document.getElementById('f-classe').value.trim();
+    const profSel = document.getElementById('f-prof').value;
+    const prof = profSel==='__autre__' ? document.getElementById('f-prof-autre').value.trim() : profSel;
+    const classeSel = document.getElementById('f-classe').value;
+    const classe = classeSel==='__autre__' ? document.getElementById('f-classe-autre').value.trim() : classeSel;
     const horaire = document.getElementById('f-horaire').value.trim();
     const salle = document.getElementById('f-salle').value.trim();
     const notes = document.getElementById('f-notes').value.trim();
