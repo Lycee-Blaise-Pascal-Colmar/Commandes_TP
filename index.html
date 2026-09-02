@@ -42,6 +42,9 @@
   .conn-status.ok{color:var(--teal-dark);}
   .conn-status.err{color:var(--rust);}
 
+  .prof-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);}
+  .prof-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .prof-legend i{width:9px;height:9px;border-radius:2px;display:inline-block;}
   .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
   .month-nav{display:flex;align-items:center;gap:10px;}
   .month-nav button{
@@ -115,8 +118,9 @@
   .notes{margin-top:8px;font-size:13px;color:var(--ink-soft);font-style:italic;}
   .slip-prepare{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);cursor:pointer;user-select:none;white-space:nowrap;flex:none;}
   .slip-prepare input{width:15px;height:15px;cursor:pointer;accent-color:var(--teal-dark);}
-  .slip.prepared{border-left:4px solid var(--teal-dark);}
+  .slip.prepared{background:var(--teal-pale);}
   .slip.prepared .slip-prepare{color:var(--teal-dark);font-weight:600;}
+  .slip{border-left:4px solid var(--border);}
   .slip-actions{margin-top:10px;display:flex;gap:14px;}
   .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);padding:0;}
   .slip-actions button:hover{color:var(--rust);}
@@ -313,6 +317,28 @@ const CLASSES_SORTED = [...CLASSES].sort((a,b)=>a.localeCompare(b,'fr'));
 const PROFS_SORTED = [...PROFS].sort((a,b)=>a.localeCompare(b,'fr'));
 const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
+// Code couleur par enseignant : Fred Lincker en bleu pastel, une couleur pastel distincte pour chacun des autres.
+const PROF_COLORS = {
+  'Fred Lincker':  { bg:'#DCE8F5', border:'#5D82A6', text:'#2E4A63' },
+  'Fred Lanot':    { bg:'#E4EBD7', border:'#748C4F', text:'#41522C' },
+  'Marina':        { bg:'#F5E2D6', border:'#B87A4C', text:'#6B4326' },
+  'Julien':        { bg:'#E8E0F0', border:'#8A6EB0', text:'#493768' },
+  'Anne-Sophie':   { bg:'#F5DEE6', border:'#B4657F', text:'#6B2F42' },
+  'Catherine':     { bg:'#F3ECCF', border:'#B99A2E', text:'#63501A' },
+  'Marie':         { bg:'#DAEFE8', border:'#4E8C79', text:'#295044' }
+};
+const DEFAULT_PROF_COLOR = { bg:'#E4E7DC', border:'#8A9184', text:'#52604F' };
+function getProfColor(prof){
+  return PROF_COLORS[prof] || DEFAULT_PROF_COLOR;
+}
+function renderProfLegend(profList){
+  const list = (profList && profList.length) ? profList : PROFS_SORTED;
+  return `<div class="prof-legend">${list.map(p=>{
+    const c = getProfColor(p);
+    return `<span><i style="background:${c.border};"></i>${escapeHtml(p)}</span>`;
+  }).join('')}</div>`;
+}
+
 const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
 
 function minOrderableIso(){
@@ -400,6 +426,38 @@ async function createOrderAndDeductStock(orderData){
   });
 }
 
+// Met à jour une commande existante en ajustant le stock : restitue les anciennes quantités
+// et décompte les nouvelles en une seule transaction (net par article si un article reste inchangé).
+async function updateOrderAndAdjustStock(order, newData){
+  const oldRefs = order.stockDeducted ? resolveItemRefs(order.items) : [];
+  const newRefs = resolveItemRefs(newData.items);
+
+  const netByPath = new Map();
+  oldRefs.forEach(ir=>{
+    const cur = netByPath.get(ir.ref.path) || { ref: ir.ref, delta: 0 };
+    cur.delta += ir.qty;
+    netByPath.set(ir.ref.path, cur);
+  });
+  newRefs.forEach(ir=>{
+    const cur = netByPath.get(ir.ref.path) || { ref: ir.ref, delta: 0 };
+    cur.delta -= ir.qty;
+    netByPath.set(ir.ref.path, cur);
+  });
+  const entries = [...netByPath.values()].filter(e=>e.delta!==0);
+  const orderRef = ordersCol.doc(order.id);
+
+  await db.runTransaction(async (tx)=>{
+    const reads = await Promise.all(entries.map(e=>tx.get(e.ref)));
+    reads.forEach((snap, idx)=>{
+      if(!snap.exists) return;
+      const current = snap.data().quantite;
+      const newQty = (current!=null ? current : 0) + entries[idx].delta;
+      tx.update(entries[idx].ref, { quantite:newQty, updatedAt: Date.now() });
+    });
+    tx.update(orderRef, { ...newData, stockDeducted:true, updatedAt: Date.now() });
+  });
+}
+
 // Supprime une commande en restituant le stock déjà décompté, le cas échéant.
 async function deleteOrderAndRestoreStock(order){
   if(!order.stockDeducted){
@@ -454,7 +512,8 @@ function renderCalendar(){
   const startDate = new Date(year,month,1-startOffset);
   const today = todayIso();
 
-  let html = '<div class="cal-grid">';
+  let html = renderProfLegend();
+  html += '<div class="cal-grid">';
   DOW.forEach(d=> html += `<div class="cal-dow">${d}</div>`);
 
   for(let i=0;i<42;i++){
@@ -468,7 +527,10 @@ function renderCalendar(){
       <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}">
         <div class="cal-daynum">${d.getDate()}</div>
         <div class="cal-tags">
-          ${shown.map(o=>`<div class="cal-tag">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`).join('')}
+          ${shown.map(o=>{
+            const c = getProfColor(o.prof);
+            return `<div class="cal-tag" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+          }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
       </div>`;
@@ -493,6 +555,7 @@ function renderAgenda(){
   window._agendaCurrentList = list;
 
   let filtersHtml = `
+    ${renderProfLegend(profs)}
     <div class="agenda-filters">
       <select id="agenda-prof">
         <option value="tous">Tous les enseignants</option>
@@ -620,7 +683,7 @@ function renderCatalogue(){
 
       <div class="cat-import">
         <div class="modal-section-label">Importer plusieurs articles d'un coup</div>
-        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Un article par ligne, au format <code>nom ; quantité ; unité</code> — les deux derniers sont facultatifs.</div>
+        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité</b> — les deux derniers sont facultatifs. N'insérez pas d'autre colonne entre elles (pas de « catégorie » par exemple) : la 2ᵉ colonne est toujours lue comme la quantité et la 3ᵉ comme l'unité.</div>
         <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce&#10;Bécher 250 mL;12&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
         <div class="cat-import-actions">
           <label class="file-btn">Choisir un fichier
@@ -686,12 +749,13 @@ function renderImportPreview(rows){
 
 function renderSlip(o){
   const itemsHtml = (o.items||[]).map(it=>`<li><span>${escapeHtml(it.name)}</span><span class="qty">${it.qty} ${escapeHtml(it.unit)}</span></li>`).join('');
+  const c = getProfColor(o.prof);
   return `
-    <div class="slip ${o.prepared?'prepared':''}">
+    <div class="slip ${o.prepared?'prepared':''}" style="border-left-color:${c.border};">
       <div class="slip-head">
         <div>
           <div class="slip-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
-          <div class="slip-meta"><b>${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
+          <div class="slip-meta"><b style="color:${c.text};">${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
         <label class="slip-prepare">
           <input type="checkbox" data-action="toggle-prepared" data-id="${o.id}" ${o.prepared?'checked':''}>
@@ -702,6 +766,7 @@ function renderSlip(o){
       ${o.protocoleTitre?`<div class="notes">Protocole : <a href="${escapeHtml(o.protocoleLien)}" target="_blank" rel="noopener">${escapeHtml(o.protocoleTitre)}</a></div>`:''}
       ${o.notes?`<div class="notes">${escapeHtml(o.notes)}</div>`:''}
       <div class="slip-actions">
+        <button type="button" data-action="edit-order" data-id="${o.id}">modifier</button>
         <button type="button" data-action="duplicate" data-id="${o.id}">dupliquer</button>
         <button data-action="delete" data-id="${o.id}">supprimer</button>
       </div>
@@ -762,8 +827,13 @@ function attachContentHandlers(){
       if(o) openDuplicateModal(o);
     });
   });
+  document.querySelectorAll('[data-action="edit-order"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openEditOrderModal(o);
+    });
+  });
 
-  const catForm = document.getElementById('cat-form');
   if(catForm){
     catForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
@@ -1068,6 +1138,12 @@ function openDayModal(iso){
       if(o) openDuplicateModal(o);
     });
   });
+  root.querySelectorAll('[data-action="edit-order"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openEditOrderModal(o);
+    });
+  });
   attachPrepareHandlers(root);
 
   document.getElementById('order-form').addEventListener('submit', async (e)=>{
@@ -1120,15 +1196,16 @@ function openDayModal(iso){
   });
 }
 
-function addModalItemRow(){
+function addModalItemRow(containerId, prefill){
+  containerId = containerId || 'items-container';
   const id = 'mitem-' + (modalItemRowCount++);
-  const container = document.getElementById('items-container');
+  const container = document.getElementById(containerId);
   const row = document.createElement('div');
   row.className = 'item-row'; row.id = id;
   row.innerHTML = `
-    <input type="text" placeholder="Nom du matériel" class="it-name" list="materiel-catalogue">
-    <input type="number" min="0" step="1" placeholder="Qté" class="it-qty">
-    <select class="it-unit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
+    <input type="text" placeholder="Nom du matériel" class="it-name" list="materiel-catalogue" value="${prefill&&prefill.name?escapeHtml(prefill.name):''}">
+    <input type="number" min="0" step="1" placeholder="Qté" class="it-qty" value="${prefill&&prefill.qty!=null?prefill.qty:''}">
+    <select class="it-unit">${UNITS.map(u=>`<option value="${u}" ${prefill&&prefill.unit===u?'selected':''}>${u}</option>`).join('')}</select>
     <button type="button">✕</button>`;
   container.appendChild(row);
   row.querySelector('button').addEventListener('click', ()=> row.remove());
@@ -1140,10 +1217,11 @@ function addModalItemRow(){
   });
 }
 
-function updateProtocoleOptions(classeSelectionnee){
-  const sel = document.getElementById('f-protocole');
+function updateProtocoleOptions(classeSelectionnee, selectId, presetVal){
+  selectId = selectId || 'f-protocole';
+  const sel = document.getElementById(selectId);
   if(!sel) return;
-  const currentVal = sel.value;
+  const currentVal = presetVal!==undefined ? presetVal : sel.value;
   const pertinents = classeSelectionnee && classeSelectionnee!=='__autre__'
     ? protocoles.filter(p=> (p.classes||[]).includes(classeSelectionnee))
     : protocoles;
@@ -1237,6 +1315,150 @@ function openDuplicateModal(order){
       closeModal();
     }catch(err){
       errEl.textContent = "La duplication a échoué. Vérifiez la connexion et réessayez.";
+      errEl.style.display = 'block';
+    }
+  });
+}
+
+function openEditOrderModal(order){
+  const root = document.getElementById('modal-root');
+  const profInList = PROFS_SORTED.includes(order.prof);
+  const classeInList = order.classe ? CLASSES_SORTED.includes(order.classe) : true;
+  const salleInList = order.salle ? SALLES.includes(order.salle) : true;
+  const matchedProtocole = order.protocoleTitre ? protocoles.find(p=>p.titre===order.protocoleTitre) : null;
+
+  root.innerHTML = `
+    <div class="overlay" id="edit-overlay">
+      <div class="modal">
+        <div class="modal-top">
+          <h2>Modifier la commande</h2>
+          <button class="close-btn" id="edit-close">✕</button>
+        </div>
+        <form id="edit-order-form">
+          <div class="field">
+            <label for="e-date">Date</label>
+            <input type="date" id="e-date" value="${order.date}" required>
+          </div>
+          <div class="field">
+            <label for="e-prof">Enseignant</label>
+            <select id="e-prof" required>
+              <option value="" disabled>Sélectionner…</option>
+              ${PROFS_SORTED.map(p=>`<option value="${escapeHtml(p)}" ${p===order.prof?'selected':''}>${escapeHtml(p)}</option>`).join('')}
+              <option value="__autre__" ${!profInList?'selected':''}>Autre (préciser)</option>
+            </select>
+            <input type="text" id="e-prof-autre" placeholder="Nom de l'enseignant" style="display:${!profInList?'block':'none'};margin-top:6px;" value="${!profInList?escapeHtml(order.prof||''):''}">
+          </div>
+          <div class="field">
+            <label for="e-classe">Classe</label>
+            <select id="e-classe">
+              <option value="">Sélectionner une classe (facultatif)</option>
+              ${CLASSES_SORTED.map(c=>`<option value="${escapeHtml(c)}" ${c===order.classe?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+              <option value="__autre__" ${(!classeInList && order.classe)?'selected':''}>Autre (préciser)</option>
+            </select>
+            <input type="text" id="e-classe-autre" placeholder="Précisez la classe" style="display:${(!classeInList && order.classe)?'block':'none'};margin-top:6px;" value="${(!classeInList && order.classe)?escapeHtml(order.classe):''}">
+          </div>
+          <div class="field">
+            <label for="e-protocole">Protocole associé (optionnel)</label>
+            <select id="e-protocole">
+              <option value="">Aucun</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="e-horaire">Horaire</label>
+              <input type="text" id="e-horaire" placeholder="Ex. 8h-10h" value="${escapeHtml(order.horaire||'')}">
+            </div>
+            <div class="field">
+              <label for="e-salle">Salle</label>
+              <select id="e-salle">
+                <option value="">Sélectionner une salle (facultatif)</option>
+                ${SALLES.map(s=>`<option value="${escapeHtml(s)}" ${s===order.salle?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+                <option value="__autre__" ${(!salleInList && order.salle)?'selected':''}>Autre (préciser)</option>
+              </select>
+              <input type="text" id="e-salle-autre" placeholder="Précisez la salle" style="display:${(!salleInList && order.salle)?'block':'none'};margin-top:6px;" value="${(!salleInList && order.salle)?escapeHtml(order.salle):''}">
+            </div>
+          </div>
+          <div class="field">
+            <label>Matériel nécessaire</label>
+            <div id="edit-items-container"></div>
+            <button type="button" class="add-item-btn" id="edit-add-item-btn">+ ajouter une ligne</button>
+          </div>
+          <div class="field">
+            <label for="e-notes">Remarques (optionnel)</label>
+            <textarea id="e-notes" placeholder="Précisions, contraintes particulières…">${escapeHtml(order.notes||'')}</textarea>
+          </div>
+          <div id="edit-form-err" class="err" style="display:none;"></div>
+          <button type="submit" class="submit-btn">Enregistrer les modifications</button>
+        </form>
+      </div>
+    </div>`;
+
+  const itemsToLoad = (order.items&&order.items.length) ? order.items : [{}];
+  itemsToLoad.forEach(it=> addModalItemRow('edit-items-container', it));
+
+  document.getElementById('edit-close').addEventListener('click', closeModal);
+  document.getElementById('edit-overlay').addEventListener('click', e=>{ if(e.target.id==='edit-overlay') closeModal(); });
+  document.getElementById('edit-add-item-btn').addEventListener('click', ()=> addModalItemRow('edit-items-container'));
+
+  document.getElementById('e-prof').addEventListener('change', (e)=>{
+    document.getElementById('e-prof-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+  });
+  document.getElementById('e-classe').addEventListener('change', (e)=>{
+    document.getElementById('e-classe-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+    updateProtocoleOptions(e.target.value, 'e-protocole');
+  });
+  updateProtocoleOptions(document.getElementById('e-classe').value, 'e-protocole', matchedProtocole?matchedProtocole.id:'');
+  document.getElementById('e-salle').addEventListener('change', (e)=>{
+    document.getElementById('e-salle-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+  });
+
+  document.getElementById('edit-order-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('edit-form-err');
+    errEl.style.display = 'none';
+
+    const date = document.getElementById('e-date').value;
+    const profSel = document.getElementById('e-prof').value;
+    const prof = profSel==='__autre__' ? document.getElementById('e-prof-autre').value.trim() : profSel;
+    const classeSel = document.getElementById('e-classe').value;
+    const classe = classeSel==='__autre__' ? document.getElementById('e-classe-autre').value.trim() : classeSel;
+    const horaire = document.getElementById('e-horaire').value.trim();
+    const salleSel = document.getElementById('e-salle').value;
+    const salle = salleSel==='__autre__' ? document.getElementById('e-salle-autre').value.trim() : salleSel;
+    const notes = document.getElementById('e-notes').value.trim();
+    const protocoleId = document.getElementById('e-protocole').value;
+    const protocole = protocoleId ? protocoles.find(p=>p.id===protocoleId) : null;
+
+    if(!date || !prof){
+      errEl.textContent = 'Indiquez la date et le nom de l\'enseignant.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const items = [];
+    document.querySelectorAll('#edit-items-container .item-row').forEach(row=>{
+      const name = row.querySelector('.it-name').value.trim();
+      const qty = row.querySelector('.it-qty').value;
+      const unit = row.querySelector('.it-unit').value;
+      if(name) items.push({name, qty: qty?Number(qty):1, unit});
+    });
+
+    if(items.length===0){
+      errEl.textContent = 'Ajoutez au moins un élément de matériel.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    try{
+      await updateOrderAndAdjustStock(order, {
+        prof, date, classe, horaire, salle, items, notes,
+        protocoleTitre: protocole ? protocole.titre : null,
+        protocoleLien: protocole ? protocole.lien : null
+      });
+      closeModal();
+    }catch(err){
+      console.error(err);
+      errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
       errEl.style.display = 'block';
     }
   });
