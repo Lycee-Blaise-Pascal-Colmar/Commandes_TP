@@ -340,6 +340,17 @@ function renderProfLegend(profList){
     return `<span><i style="background:${c.border};"></i>${escapeHtml(p)}</span>`;
   }).join('')}</div>`;
 }
+function updateModalProfBg(boxEl, prof){
+  if(!boxEl) return;
+  if(!prof){
+    boxEl.style.background = '';
+    boxEl.style.borderColor = '';
+    return;
+  }
+  const c = getProfColor(prof);
+  boxEl.style.background = c.bg;
+  boxEl.style.borderColor = c.border;
+}
 
 const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
 
@@ -1040,7 +1051,7 @@ function openDayModal(iso){
   const dayOrders = ordersByDate(iso);
   root.innerHTML = `
     <div class="overlay" id="overlay">
-      <div class="modal">
+      <div class="modal" id="order-modal-box">
         <div class="modal-top">
           <h2>${capitalize(fmtDateLong(iso))}</h2>
           <button class="close-btn" id="close-modal">✕</button>
@@ -1118,7 +1129,12 @@ function openDayModal(iso){
   }
 
   document.getElementById('f-prof').addEventListener('change', (e)=>{
-    document.getElementById('f-prof-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+    const isAutre = e.target.value==='__autre__';
+    document.getElementById('f-prof-autre').style.display = isAutre ? 'block' : 'none';
+    updateModalProfBg(document.getElementById('order-modal-box'), isAutre ? document.getElementById('f-prof-autre').value.trim() : e.target.value);
+  });
+  document.getElementById('f-prof-autre').addEventListener('input', (e)=>{
+    updateModalProfBg(document.getElementById('order-modal-box'), e.target.value.trim());
   });
   document.getElementById('f-classe').addEventListener('change', (e)=>{
     document.getElementById('f-classe-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
@@ -1335,7 +1351,7 @@ function openEditOrderModal(order){
 
   root.innerHTML = `
     <div class="overlay" id="edit-overlay">
-      <div class="modal">
+      <div class="modal" id="edit-modal-box">
         <div class="modal-top">
           <h2>Modifier la commande</h2>
           <button class="close-btn" id="edit-close">✕</button>
@@ -1407,8 +1423,14 @@ function openEditOrderModal(order){
   document.getElementById('edit-add-item-btn').addEventListener('click', ()=> addModalItemRow('edit-items-container'));
 
   document.getElementById('e-prof').addEventListener('change', (e)=>{
-    document.getElementById('e-prof-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+    const isAutre = e.target.value==='__autre__';
+    document.getElementById('e-prof-autre').style.display = isAutre ? 'block' : 'none';
+    updateModalProfBg(document.getElementById('edit-modal-box'), isAutre ? document.getElementById('e-prof-autre').value.trim() : e.target.value);
   });
+  document.getElementById('e-prof-autre').addEventListener('input', (e)=>{
+    updateModalProfBg(document.getElementById('edit-modal-box'), e.target.value.trim());
+  });
+  updateModalProfBg(document.getElementById('edit-modal-box'), order.prof);
   document.getElementById('e-classe').addEventListener('change', (e)=>{
     document.getElementById('e-classe-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
     updateProtocoleOptions(e.target.value, 'e-protocole');
