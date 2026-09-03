@@ -100,6 +100,9 @@
   /* List / agenda view */
   .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .prepare-count{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);margin-right:auto;}
+  .cat-lowstock-toggle{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);cursor:pointer;user-select:none;white-space:nowrap;}
+  .cat-lowstock-toggle input{width:15px;height:15px;cursor:pointer;accent-color:var(--rust);}
+  #cat-search{padding:7px 10px;border:1px solid var(--border);font-family:'IBM Plex Sans',sans-serif;font-size:13px;min-width:180px;}
   .agenda-filters select{font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 8px;border:1px solid var(--border);background:var(--card);}
   .download-btn{
     font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 12px;
@@ -326,6 +329,7 @@ let unsubscribe = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
+const LOW_STOCK_THRESHOLD = 10;
 const CLASSES = ['SVT seconde','SVT première','SVT terminale','Biozone','Enseignement scientifique','BPH première','BPH terminale','Biotech 1STL','Biotech TSTL','Bio-bio 1STL','Biotech seconde'];
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
 const SALLES = ['A128','A130','A132','A134','A138','A142'];
@@ -721,10 +725,15 @@ function renderProtocoleRow(p){
 
 function renderCatalogue(){
   const catFilter = window._catCategoryFilter || 'toutes';
+  const searchTerm = (window._catSearch || '').trim().toLowerCase();
+  const lowStockOnly = !!window._catLowStockOnly;
   const categories = getCatalogueCategories();
   const items = [...catalogue]
     .filter(it=> catFilter==='toutes' || (it.categorie||'')===catFilter || (catFilter==='__sans__' && !it.categorie))
+    .filter(it=> !searchTerm || it.nom.toLowerCase().includes(searchTerm))
+    .filter(it=> !lowStockOnly || (it.quantite!=null && it.quantite<LOW_STOCK_THRESHOLD))
     .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  window._catCurrentList = items;
 
   const groups = new Map();
   items.forEach(it=>{
@@ -752,18 +761,24 @@ function renderCatalogue(){
   const rows = items.length ? groupKeys.map(key=>`
       <div class="cat-group-heading">${key==='__sans__' ? 'Sans catégorie' : escapeHtml(key)}</div>
       ${groups.get(key).map(rowHtml).join('')}
-    `).join('') : '<div class="empty">Le catalogue est vide pour le moment. Ajoutez le premier article ci-dessous.</div>';
+    `).join('') : `<div class="empty">${catalogue.length===0 ? 'Le catalogue est vide pour le moment. Ajoutez le premier article ci-dessous.' : 'Aucun article ne correspond à ces filtres.'}</div>`;
 
   return `
     <div class="cat-wrap">
       <div class="cat-intro">Liste commune du matériel disponible au laboratoire. Chaque collègue peut ajouter, corriger ou mettre à jour une quantité — ce catalogue alimente ensuite les suggestions dans le formulaire de commande.</div>
 
       <div class="agenda-filters">
+        <input type="text" id="cat-search" placeholder="Rechercher un article…" value="${escapeHtml(window._catSearch||'')}">
         <select id="cat-category-filter">
           <option value="toutes">Toutes les catégories</option>
           ${categories.map(c=>`<option value="${escapeHtml(c)}" ${catFilter===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
           <option value="__sans__" ${catFilter==='__sans__'?'selected':''}>Sans catégorie</option>
         </select>
+        <label class="cat-lowstock-toggle">
+          <input type="checkbox" id="cat-lowstock" ${lowStockOnly?'checked':''}>
+          Stock bas seulement (&lt; ${LOW_STOCK_THRESHOLD})
+        </label>
+        <button type="button" class="download-btn" id="download-cat-csv">⬇ Exporter le catalogue (${items.length})</button>
       </div>
 
       <div class="cat-list">
@@ -985,6 +1000,23 @@ function attachContentHandlers(){
   const catCategoryFilter = document.getElementById('cat-category-filter');
   if(catCategoryFilter){
     catCategoryFilter.addEventListener('change', e=>{ window._catCategoryFilter = e.target.value; render(); });
+  }
+  const catSearch = document.getElementById('cat-search');
+  if(catSearch){
+    catSearch.addEventListener('input', e=>{
+      window._catSearch = e.target.value;
+      render();
+      const el = document.getElementById('cat-search');
+      if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    });
+  }
+  const catLowStock = document.getElementById('cat-lowstock');
+  if(catLowStock){
+    catLowStock.addEventListener('change', e=>{ window._catLowStockOnly = e.target.checked; render(); });
+  }
+  const downloadCatBtn = document.getElementById('download-cat-csv');
+  if(downloadCatBtn){
+    downloadCatBtn.addEventListener('click', ()=> downloadCatalogueCsv(window._catCurrentList || []));
   }
 
   document.querySelectorAll('[data-action="restock-cat"]').forEach(el=>{
@@ -1707,6 +1739,29 @@ function downloadCsv(list){
   const stamp = new Date().toISOString().slice(0,10);
   a.href = url;
   a.download = `commandes-tp-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadCatalogueCsv(list){
+  if(!list || list.length===0){
+    alert("Aucun article à télécharger avec ces filtres.");
+    return;
+  }
+  const headers = ['Article','Quantité','Unité','Catégorie'];
+  const rows = [headers];
+  list.forEach(it=>{
+    rows.push([it.nom, it.quantite!=null?it.quantite:'', it.unite||'', it.categorie||'']);
+  });
+  const csvContent = rows.map(r=>r.map(csvEscape).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `catalogue-tp-${stamp}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
