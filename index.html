@@ -146,7 +146,6 @@
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes riseIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
   .modal h2{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin:0 0 4px;text-transform:capitalize;}
-  .modal .modal-close{position:absolute;}
   .modal-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:14px;}
   .close-btn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-faint);line-height:1;}
   .close-btn:hover{color:var(--rust);}
@@ -577,7 +576,6 @@ function renderCalendar(){
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
       </div>`;
-    if(i===41 && d < new Date(year,month+1,0)) { /* ensure full last week shown, loop caps at 42 anyway */ }
   }
   html += '</div>';
   return html;
@@ -852,10 +850,20 @@ function parseImportText(text){
 function renderImportPreview(rows){
   if(!rows.length) return '<div class="err" style="display:block;">Aucun article valide détecté dans le texte fourni.</div>';
   const existingNames = new Set(catalogue.map(c=>(c.nom||'').toLowerCase()));
-  const nbNew = rows.filter(r=>!existingNames.has(r.nom.toLowerCase())).length;
-  const nbMaj = rows.length - nbNew;
+  const seenInImport = new Set(); // détecte les doublons internes à la liste importée elle-même
+  let nbNew = 0, nbMaj = 0, nbDoublonInterne = 0;
+  rows.forEach(r=>{
+    const key = r.nom.toLowerCase();
+    if(existingNames.has(key) || seenInImport.has(key)){
+      nbMaj++;
+      if(!existingNames.has(key)) nbDoublonInterne++;
+    }else{
+      nbNew++;
+    }
+    seenInImport.add(key);
+  });
   return `
-    <div class="import-summary">${rows.length} article${rows.length>1?'s':''} détecté${rows.length>1?'s':''} — ${nbNew} nouveau${nbNew>1?'x':''}, ${nbMaj} mise${nbMaj>1?'s':''} à jour.</div>
+    <div class="import-summary">${rows.length} ligne${rows.length>1?'s':''} détectée${rows.length>1?'s':''} — ${nbNew} nouvel${nbNew>1?'les':'le'} article${nbNew>1?'s':''}, ${nbMaj} mise${nbMaj>1?'s':''} à jour${nbDoublonInterne?` (dont ${nbDoublonInterne} doublon${nbDoublonInterne>1?'s':''} dans la liste collée, qui seront fusionnés)`:''}.</div>
     <ul class="import-list">
       ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}${r.categorie?' <span class="import-tag">'+escapeHtml(r.categorie)+'</span>':''}${existingNames.has(r.nom.toLowerCase())?' <span class="import-tag">mise à jour</span>':''}</li>`).join('')}
       ${rows.length>40?`<li>… et ${rows.length-40} de plus</li>`:''}
@@ -921,7 +929,14 @@ function attachPrepareHandlers(root){
 function attachContentHandlers(){
   attachPrepareHandlers();
   document.querySelectorAll('.cal-cell').forEach(cell=>{
-    cell.addEventListener('click', ()=> openDayModal(cell.getAttribute('data-date')));
+    cell.addEventListener('click', ()=>{
+      const iso = cell.getAttribute('data-date');
+      if(!isOrderable(iso)){
+        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
+        return;
+      }
+      openDayModal(iso);
+    });
   });
   const profSel = document.getElementById('agenda-prof');
   if(profSel){
@@ -1175,17 +1190,25 @@ async function importCatalogueRows(rows){
   for(const chunk of chunks){
     const batch = db.batch();
     chunk.forEach(r=>{
-      const existing = existingByName.get(r.nom.toLowerCase());
+      const key = r.nom.toLowerCase();
+      const existing = existingByName.get(key);
       if(existing){
-        batch.update(catalogueCol.doc(existing.id), {
+        const merged = {
+          id: existing.id,
+          nom: existing.nom,
           quantite: r.quantite!=null ? r.quantite : existing.quantite,
           unite: r.unite || existing.unite || '',
-          categorie: r.categorie || existing.categorie || null,
-          updatedAt: Date.now()
+          categorie: r.categorie || existing.categorie || null
+        };
+        batch.update(catalogueCol.doc(existing.id), {
+          quantite: merged.quantite, unite: merged.unite, categorie: merged.categorie, updatedAt: Date.now()
         });
+        existingByName.set(key, merged); // évite de recréer un doublon si le même nom réapparaît plus loin dans l'import
       }else{
         const ref = catalogueCol.doc();
-        batch.set(ref, { nom: r.nom, quantite: r.quantite, unite: r.unite||'', categorie: r.categorie||null, updatedAt: Date.now() });
+        const created = { id: ref.id, nom: r.nom, quantite: r.quantite, unite: r.unite||'', categorie: r.categorie||null };
+        batch.set(ref, { nom: created.nom, quantite: created.quantite, unite: created.unite, categorie: created.categorie, updatedAt: Date.now() });
+        existingByName.set(key, created); // idem pour un nouvel article dupliqué plusieurs fois dans le même import
       }
     });
     await batch.commit();
@@ -1335,6 +1358,12 @@ function openDayModal(iso){
 
     if(!prof){
       errEl.textContent = 'Indiquez votre nom.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    if(!isOrderable(iso)){
+      errEl.textContent = `Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour déposer une commande.`;
       errEl.style.display = 'block';
       return;
     }
@@ -1533,7 +1562,7 @@ function openDuplicateModal(order){
         <div class="cat-intro">« ${escapeHtml((order.items||[]).map(it=>it.name).join(', ') || 'Commande')} » — ${escapeHtml(order.prof)}${order.classe?' · '+escapeHtml(order.classe):''}. Choisissez la nouvelle date du TP ; tout le reste (matériel, horaire, salle, protocole) sera repris à l'identique.</div>
         <div class="field">
           <label for="dup-date">Nouvelle date</label>
-          <input type="date" id="dup-date" value="${suggested}">
+          <input type="date" id="dup-date" value="${suggested}" min="${minOrderableIso()}">
         </div>
         <div id="dup-err" class="err" style="display:none;"></div>
         <button type="button" class="submit-btn" id="dup-confirm">Dupliquer vers cette date</button>
@@ -1547,6 +1576,11 @@ function openDuplicateModal(order){
     const newDate = document.getElementById('dup-date').value;
     if(!newDate){
       errEl.textContent = 'Choisissez une date.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if(!isOrderable(newDate)){
+      errEl.textContent = `Ce jour est à moins de ${MIN_LEAD_DAYS} jours : choisissez une date plus éloignée.`;
       errEl.style.display = 'block';
       return;
     }
