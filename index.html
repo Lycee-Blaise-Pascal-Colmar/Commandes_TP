@@ -97,6 +97,7 @@
 
   /* List / agenda view */
   .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .prepare-count{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);margin-right:auto;}
   .agenda-filters select{font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 8px;border:1px solid var(--border);background:var(--card);}
   .download-btn{
     font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:7px 12px;
@@ -228,6 +229,8 @@
       font-family:'IBM Plex Sans',sans-serif;color:#000;background:#fff;padding:20px;
     }
     #print-area h1{font-family:'IBM Plex Mono',monospace;font-size:20px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
+    #print-area h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:14px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;}
+    #print-area h3.print-day-heading:first-of-type{margin-top:0;}
     #print-area .print-order{border-bottom:1px solid #999;padding:10px 0;page-break-inside:avoid;}
     #print-area .print-order h2{font-size:15px;margin:0 0 4px;}
     #print-area .print-order .meta{font-size:12.5px;color:#333;margin-bottom:6px;}
@@ -262,10 +265,12 @@
       <div class="month-title" id="month-title"></div>
       <button id="next-month">›</button>
       <button id="today-btn">Aujourd'hui</button>
+      <button id="print-week-btn" class="download-btn">🖨 Imprimer une semaine</button>
     </div>
     <div class="view-toggle">
       <button id="view-cal" class="active">Calendrier</button>
       <button id="view-agenda">Vue d'ensemble</button>
+      <button id="view-prepare">À préparer</button>
       <button id="view-catalogue">Catalogue</button>
       <button id="view-protocoles">Protocoles</button>
     </div>
@@ -408,6 +413,10 @@ function fmtDateLong(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
+function fmtDateShort(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+}
 function fmtMonthKey(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
@@ -508,9 +517,11 @@ function render(){
   document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('next-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('today-btn').style.display = currentView==='cal' ? '' : 'none';
+  document.getElementById('print-week-btn').style.display = currentView==='cal' ? '' : 'none';
   let html;
   if(currentView==='cal') html = renderCalendar();
   else if(currentView==='agenda') html = renderAgenda();
+  else if(currentView==='prepare') html = renderPrepare();
   else if(currentView==='catalogue') html = renderCatalogue();
   else html = renderProtocoles();
   document.getElementById('content').innerHTML = html;
@@ -594,6 +605,31 @@ function renderAgenda(){
     }
   }
   return filtersHtml + body;
+}
+
+function renderPrepare(){
+  const today = todayIso();
+  const list = orders.filter(o=> o.date>=today && !o.prepared).sort((a,b)=>a.date.localeCompare(b.date));
+  window._prepareCurrentList = list;
+
+  let header = `
+    <div class="agenda-filters">
+      <div class="prepare-count">${list.length} commande${list.length!==1?'s':''} à préparer, à partir d'aujourd'hui</div>
+      <button type="button" class="download-btn" id="print-prepare-btn">🖨 Imprimer cette liste</button>
+    </div>`;
+
+  let body;
+  if(list.length===0){
+    body = '<div class="empty">Rien à préparer pour l\'instant 🎉</div>';
+  }else{
+    body = '';
+    let currentDate = null;
+    for(const o of list){
+      if(o.date!==currentDate){ body += `<div class="month-heading">${capitalize(fmtDateLong(o.date))}</div>`; currentDate = o.date; }
+      body += renderSlip(o);
+    }
+  }
+  return header + body;
 }
 
 function renderProtocoles(){
@@ -829,6 +865,10 @@ function attachContentHandlers(){
   const downloadBtn = document.getElementById('download-csv');
   if(downloadBtn){
     downloadBtn.addEventListener('click', ()=> downloadCsv(window._agendaCurrentList || []));
+  }
+  const printPrepareBtn = document.getElementById('print-prepare-btn');
+  if(printPrepareBtn){
+    printPrepareBtn.addEventListener('click', ()=> printOrdersGrouped('Commandes à préparer', window._prepareCurrentList || []));
   }
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -1272,22 +1312,79 @@ function updateMaterielDatalist(){
     .join('');
 }
 
-function printDay(iso){
-  const dayOrders = ordersByDate(iso);
+function printOrderHtml(o){
+  return `
+    <div class="print-order">
+      <h2>${escapeHtml(o.prof)}${o.classe?' — '+escapeHtml(o.classe):''}</h2>
+      <div class="meta">${o.horaire?'Horaire : '+escapeHtml(o.horaire)+'  ':''}${o.salle?'Salle : '+escapeHtml(o.salle):''}</div>
+      ${(o.items&&o.items.length) ? `<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>` : ''}
+      ${o.protocoleTitre?`<div class="meta">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`:''}
+      ${o.notes?`<div class="print-notes">${escapeHtml(o.notes)}</div>`:''}
+    </div>`;
+}
+
+function printOrdersGrouped(title, list){
   const area = document.getElementById('print-area');
-  area.innerHTML = `
-    <h1>${capitalize(fmtDateLong(iso))}</h1>
-    ${dayOrders.map(o=>`
-      <div class="print-order">
-        <h2>${escapeHtml(o.prof)}${o.classe?' — '+escapeHtml(o.classe):''}</h2>
-        <div class="meta">${o.horaire?'Horaire : '+escapeHtml(o.horaire)+'  ':''}${o.salle?'Salle : '+escapeHtml(o.salle):''}</div>
-        ${(o.items&&o.items.length) ? `<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>` : ''}
-        ${o.protocoleTitre?`<div class="meta">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`:''}
-        ${o.notes?`<div class="print-notes">${escapeHtml(o.notes)}</div>`:''}
-      </div>
-    `).join('')}
-  `;
+  let html = `<h1>${escapeHtml(title)}</h1>`;
+  if(!list || list.length===0){
+    html += `<p>Aucune commande.</p>`;
+  }else{
+    let currentDate = null;
+    list.forEach(o=>{
+      if(o.date!==currentDate){ html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`; currentDate = o.date; }
+      html += printOrderHtml(o);
+    });
+  }
+  area.innerHTML = html;
   window.print();
+}
+
+function printDay(iso){
+  printOrdersGrouped(capitalize(fmtDateLong(iso)), ordersByDate(iso));
+}
+
+function mondayOf(iso){
+  const d = new Date(iso+'T00:00:00');
+  const offset = (d.getDay()+6)%7; // Mon=0
+  d.setDate(d.getDate()-offset);
+  return isoDate(d);
+}
+
+function printWeek(mondayIso){
+  const start = new Date(mondayIso+'T00:00:00');
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  const endIso = isoDate(end);
+  const weekOrders = orders.filter(o=> o.date>=mondayIso && o.date<=endIso).sort((a,b)=>a.date.localeCompare(b.date));
+  printOrdersGrouped(`Semaine du ${fmtDateShort(mondayIso)} au ${fmtDateShort(endIso)}`, weekOrders);
+}
+
+function openPrintWeekModal(){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="overlay" id="pw-overlay">
+      <div class="modal" style="max-width:340px;">
+        <div class="modal-top">
+          <h2>Imprimer une semaine</h2>
+          <button class="close-btn" id="pw-close">✕</button>
+        </div>
+        <form id="pw-form">
+          <div class="field">
+            <label for="pw-date">Choisissez un jour de la semaine à imprimer</label>
+            <input type="date" id="pw-date" value="${todayIso()}" required>
+          </div>
+          <button type="submit" class="submit-btn">Imprimer</button>
+        </form>
+      </div>
+    </div>`;
+  document.getElementById('pw-close').addEventListener('click', closeModal);
+  document.getElementById('pw-overlay').addEventListener('click', e=>{ if(e.target.id==='pw-overlay') closeModal(); });
+  document.getElementById('pw-form').addEventListener('submit', e=>{
+    e.preventDefault();
+    const iso = document.getElementById('pw-date').value;
+    if(!iso) return;
+    closeModal();
+    printWeek(mondayOf(iso));
+  });
 }
 
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
@@ -1534,13 +1631,16 @@ function downloadCsv(list){
 document.getElementById('prev-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()-1); render(); });
 document.getElementById('next-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()+1); render(); });
 document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = new Date(); cursor.setDate(1); render(); });
+document.getElementById('print-week-btn').addEventListener('click', ()=> openPrintWeekModal());
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
 document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
+document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
   document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
+  document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
 }
