@@ -111,6 +111,10 @@
     text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
   }
   .month-heading:first-child{margin-top:0;}
+  .cat-group-heading{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;color:var(--teal-dark);
+    text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px;background:var(--teal-pale);
+  }
   .slip{position:relative;background:var(--card);border:1px solid var(--border);margin-bottom:14px;padding:14px 16px 12px;box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
   .slip-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;}
@@ -157,6 +161,8 @@
   .item-row{display:grid;grid-template-columns:1fr 58px 78px 24px;gap:6px;margin-bottom:6px;align-items:center;}
   .item-row input{padding:7px 8px;font-size:13px;}
   .item-row button{background:none;border:none;color:var(--rust);cursor:pointer;font-size:15px;padding:4px;}
+  .it-name-wrap{display:flex;flex-direction:column;gap:3px;}
+  .it-category{font-family:'IBM Plex Sans',sans-serif;font-size:10.5px;padding:3px 5px;border:1px solid var(--border);background:var(--paper);color:var(--ink-soft);}
   .add-item-btn{
     font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal-dark);background:none;
     border:1px dashed var(--border);padding:6px 10px;cursor:pointer;width:100%;margin-top:2px;
@@ -319,6 +325,7 @@ let cursor = new Date(); cursor.setDate(1);
 let unsubscribe = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
+const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
 const CLASSES = ['SVT seconde','SVT première','SVT terminale','Biozone','Enseignement scientifique','BPH première','BPH terminale','Biotech 1STL','Biotech TSTL','Bio-bio 1STL','Biotech seconde'];
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
 const SALLES = ['A128','A130','A132','A134','A138','A142'];
@@ -511,6 +518,10 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<'
 
 function ordersByDate(iso){
   return orders.filter(o=>o.date===iso).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+}
+function getCatalogueCategories(){
+  const fromCatalogue = catalogue.map(it=>it.categorie).filter(Boolean);
+  return Array.from(new Set([...CATEGORIES, ...fromCatalogue])).sort((a,b)=>a.localeCompare(b,'fr'));
 }
 
 function render(){
@@ -709,8 +720,25 @@ function renderProtocoleRow(p){
 }
 
 function renderCatalogue(){
-  const items = [...catalogue].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
-  const rows = items.length ? items.map(it=>`
+  const catFilter = window._catCategoryFilter || 'toutes';
+  const categories = getCatalogueCategories();
+  const items = [...catalogue]
+    .filter(it=> catFilter==='toutes' || (it.categorie||'')===catFilter || (catFilter==='__sans__' && !it.categorie))
+    .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+
+  const groups = new Map();
+  items.forEach(it=>{
+    const key = it.categorie || '__sans__';
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  });
+  const groupKeys = [...groups.keys()].sort((a,b)=>{
+    if(a==='__sans__') return 1;
+    if(b==='__sans__') return -1;
+    return a.localeCompare(b,'fr');
+  });
+
+  const rowHtml = it => `
     <div class="cat-row" data-id="${it.id}">
       <div class="cat-name">${escapeHtml(it.nom)}</div>
       <div class="cat-qty"><span class="qty-view ${it.quantite!=null && it.quantite<0 ? 'qty-negative' : ''}">${it.quantite!=null && it.quantite!==''?it.quantite:'—'}</span> <span class="cat-unit">${escapeHtml(it.unite||'')}</span></div>
@@ -719,11 +747,25 @@ function renderCatalogue(){
         <button type="button" data-action="edit-cat" data-id="${it.id}">corriger</button>
         <button type="button" data-action="delete-cat" data-id="${it.id}">supprimer</button>
       </div>
-    </div>`).join('') : '<div class="empty">Le catalogue est vide pour le moment. Ajoutez le premier article ci-dessous.</div>';
+    </div>`;
+
+  const rows = items.length ? groupKeys.map(key=>`
+      <div class="cat-group-heading">${key==='__sans__' ? 'Sans catégorie' : escapeHtml(key)}</div>
+      ${groups.get(key).map(rowHtml).join('')}
+    `).join('') : '<div class="empty">Le catalogue est vide pour le moment. Ajoutez le premier article ci-dessous.</div>';
 
   return `
     <div class="cat-wrap">
       <div class="cat-intro">Liste commune du matériel disponible au laboratoire. Chaque collègue peut ajouter, corriger ou mettre à jour une quantité — ce catalogue alimente ensuite les suggestions dans le formulaire de commande.</div>
+
+      <div class="agenda-filters">
+        <select id="cat-category-filter">
+          <option value="toutes">Toutes les catégories</option>
+          ${categories.map(c=>`<option value="${escapeHtml(c)}" ${catFilter===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+          <option value="__sans__" ${catFilter==='__sans__'?'selected':''}>Sans catégorie</option>
+        </select>
+      </div>
+
       <div class="cat-list">
         <div class="cat-row cat-head">
           <div class="cat-name">Article</div>
@@ -735,8 +777,8 @@ function renderCatalogue(){
 
       <div class="cat-import">
         <div class="modal-section-label">Importer plusieurs articles d'un coup</div>
-        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité</b> — les deux derniers sont facultatifs. N'insérez pas d'autre colonne entre elles (pas de « catégorie » par exemple) : la 2ᵉ colonne est toujours lue comme la quantité et la 3ᵉ comme l'unité.</div>
-        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce&#10;Bécher 250 mL;12&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
+        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité, 4) catégorie</b> — les trois derniers sont facultatifs. N'insérez pas de colonne supplémentaire entre elles : la 2ᵉ colonne est toujours lue comme la quantité, la 3ᵉ comme l'unité, la 4ᵉ comme la catégorie.</div>
+        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie&#10;Bécher 250 mL;12;;Verrerie&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
         <div class="cat-import-actions">
           <label class="file-btn">Choisir un fichier
             <input type="file" id="import-file" accept=".csv,.txt" hidden>
@@ -763,6 +805,15 @@ function renderCatalogue(){
               <select id="c-unit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
             </div>
           </div>
+          <div class="field">
+            <label for="c-category">Catégorie (optionnel)</label>
+            <select id="c-category">
+              <option value="">Aucune</option>
+              ${categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+              <option value="__autre__">Autre (préciser)</option>
+            </select>
+            <input type="text" id="c-category-autre" placeholder="Nouvelle catégorie" style="display:none;margin-top:6px;">
+          </div>
           <div id="cat-err" class="err" style="display:none;"></div>
           <button type="submit" class="submit-btn">Ajouter au catalogue</button>
         </form>
@@ -777,7 +828,8 @@ function parseImportText(text){
     let quantite = parts[1]!==undefined ? parts[1].trim().replace(',','.') : '';
     quantite = quantite!=='' && !isNaN(Number(quantite)) ? Number(quantite) : null;
     const unite = (parts[2]||'').trim();
-    return { nom, quantite, unite };
+    const categorie = (parts[3]||'').trim();
+    return { nom, quantite, unite, categorie };
   }).filter(r=> r.nom && !['nom','article','matériel','materiel'].includes(r.nom.toLowerCase()));
 }
 
@@ -789,7 +841,7 @@ function renderImportPreview(rows){
   return `
     <div class="import-summary">${rows.length} article${rows.length>1?'s':''} détecté${rows.length>1?'s':''} — ${nbNew} nouveau${nbNew>1?'x':''}, ${nbMaj} mise${nbMaj>1?'s':''} à jour.</div>
     <ul class="import-list">
-      ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}${existingNames.has(r.nom.toLowerCase())?' <span class="import-tag">mise à jour</span>':''}</li>`).join('')}
+      ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}${r.categorie?' <span class="import-tag">'+escapeHtml(r.categorie)+'</span>':''}${existingNames.has(r.nom.toLowerCase())?' <span class="import-tag">mise à jour</span>':''}</li>`).join('')}
       ${rows.length>40?`<li>… et ${rows.length-40} de plus</li>`:''}
     </ul>
     <div class="cat-import-actions">
@@ -902,6 +954,8 @@ function attachContentHandlers(){
       const nom = document.getElementById('c-nom').value.trim();
       const qty = document.getElementById('c-qty').value;
       const unite = document.getElementById('c-unit').value;
+      const catSel = document.getElementById('c-category').value;
+      const categorie = catSel==='__autre__' ? document.getElementById('c-category-autre').value.trim() : catSel;
       if(!nom){
         errEl.textContent = 'Indiquez le nom du matériel.';
         errEl.style.display = 'block';
@@ -914,13 +968,23 @@ function attachContentHandlers(){
         return;
       }
       try{
-        await catalogueCol.add({ nom, quantite: qty!==''?Number(qty):null, unite, updatedAt: Date.now() });
+        await catalogueCol.add({ nom, quantite: qty!==''?Number(qty):null, unite, categorie: categorie||null, updatedAt: Date.now() });
         catForm.reset();
       }catch(err){
         errEl.textContent = "L'ajout a échoué. Vérifiez la connexion et réessayez.";
         errEl.style.display = 'block';
       }
     });
+    const catCategorySel = document.getElementById('c-category');
+    if(catCategorySel){
+      catCategorySel.addEventListener('change', (e)=>{
+        document.getElementById('c-category-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+      });
+    }
+  }
+  const catCategoryFilter = document.getElementById('cat-category-filter');
+  if(catCategoryFilter){
+    catCategoryFilter.addEventListener('change', e=>{ window._catCategoryFilter = e.target.value; render(); });
   }
 
   document.querySelectorAll('[data-action="restock-cat"]').forEach(el=>{
@@ -950,9 +1014,11 @@ function attachContentHandlers(){
       if(nouvelleQte===null) return;
       const nouvelleUnite = prompt(`Unité pour « ${it.nom} » (ex. boîtes, tubes, mL…) :`, it.unite||'');
       if(nouvelleUnite===null) return;
+      const nouvelleCategorie = prompt(`Catégorie pour « ${it.nom} » (laissez vide pour aucune) :\nCatégories existantes : ${getCatalogueCategories().join(', ')}`, it.categorie||'');
+      if(nouvelleCategorie===null) return;
       const val = nouvelleQte.trim();
       try{
-        await catalogueCol.doc(it.id).update({ quantite: val!==''?Number(val):null, unite: nouvelleUnite.trim(), updatedAt: Date.now() });
+        await catalogueCol.doc(it.id).update({ quantite: val!==''?Number(val):null, unite: nouvelleUnite.trim(), categorie: nouvelleCategorie.trim()||null, updatedAt: Date.now() });
       }catch(err){
         alert("La mise à jour a échoué. Vérifiez la connexion et réessayez.");
       }
@@ -1075,11 +1141,12 @@ async function importCatalogueRows(rows){
         batch.update(catalogueCol.doc(existing.id), {
           quantite: r.quantite!=null ? r.quantite : existing.quantite,
           unite: r.unite || existing.unite || '',
+          categorie: r.categorie || existing.categorie || null,
           updatedAt: Date.now()
         });
       }else{
         const ref = catalogueCol.doc();
-        batch.set(ref, { nom: r.nom, quantite: r.quantite, unite: r.unite||'', updatedAt: Date.now() });
+        batch.set(ref, { nom: r.nom, quantite: r.quantite, unite: r.unite||'', categorie: r.categorie||null, updatedAt: Date.now() });
       }
     });
     await batch.commit();
@@ -1264,22 +1331,44 @@ function openDayModal(iso){
 function addModalItemRow(containerId, prefill){
   containerId = containerId || 'items-container';
   const id = 'mitem-' + (modalItemRowCount++);
+  const dlId = 'dl-' + id;
   const container = document.getElementById(containerId);
   const row = document.createElement('div');
   row.className = 'item-row'; row.id = id;
   row.innerHTML = `
-    <input type="text" placeholder="Nom du matériel" class="it-name" list="materiel-catalogue" value="${prefill&&prefill.name?escapeHtml(prefill.name):''}">
+    <div class="it-name-wrap">
+      <select class="it-category">
+        <option value="">Toutes catégories</option>
+        ${getCatalogueCategories().map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="Nom du matériel" class="it-name" list="${dlId}" value="${prefill&&prefill.name?escapeHtml(prefill.name):''}">
+    </div>
     <input type="number" min="0" step="1" placeholder="Qté" class="it-qty" value="${prefill&&prefill.qty!=null?prefill.qty:''}">
     <select class="it-unit">${UNITS.map(u=>`<option value="${u}" ${prefill&&prefill.unit===u?'selected':''}>${u}</option>`).join('')}</select>
-    <button type="button">✕</button>`;
+    <button type="button">✕</button>
+    <datalist id="${dlId}"></datalist>`;
   container.appendChild(row);
   row.querySelector('button').addEventListener('click', ()=> row.remove());
   const nameInput = row.querySelector('.it-name');
   const unitSelect = row.querySelector('.it-unit');
+  const categorySelect = row.querySelector('.it-category');
+  const datalistEl = row.querySelector('datalist');
+  populateRowDatalist(datalistEl, categorySelect.value);
+  categorySelect.addEventListener('change', ()=> populateRowDatalist(datalistEl, categorySelect.value));
   nameInput.addEventListener('input', ()=>{
     const match = catalogue.find(it=>it.nom.toLowerCase()===nameInput.value.trim().toLowerCase());
     if(match && match.unite) unitSelect.value = match.unite;
   });
+}
+
+function populateRowDatalist(datalistEl, category){
+  if(!datalistEl) return;
+  const items = catalogue.filter(it=> !category || (it.categorie||'')===category);
+  datalistEl.innerHTML = items
+    .slice()
+    .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
+    .map(it=>`<option value="${escapeHtml(it.nom)}">${it.quantite!=null?it.quantite+' '+escapeHtml(it.unite||'')+' en stock':''}</option>`)
+    .join('');
 }
 
 function updateProtocoleOptions(classeSelectionnee, selectId, presetVal){
@@ -1302,17 +1391,11 @@ function updateProtocoleOptions(classeSelectionnee, selectId, presetVal){
 }
 
 function updateMaterielDatalist(){
-  let dl = document.getElementById('materiel-catalogue');
-  if(!dl){
-    dl = document.createElement('datalist');
-    dl.id = 'materiel-catalogue';
-    document.body.appendChild(dl);
-  }
-  dl.innerHTML = catalogue
-    .slice()
-    .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
-    .map(it=>`<option value="${escapeHtml(it.nom)}">${it.quantite!=null?it.quantite+' '+escapeHtml(it.unite||'')+' en stock':''}</option>`)
-    .join('');
+  document.querySelectorAll('.item-row').forEach(row=>{
+    const categorySelect = row.querySelector('.it-category');
+    const datalistEl = row.querySelector('datalist');
+    if(datalistEl) populateRowDatalist(datalistEl, categorySelect ? categorySelect.value : '');
+  });
 }
 
 function printOrderHtml(o){
