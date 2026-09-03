@@ -73,6 +73,8 @@
   }
   .cal-cell:hover{background:var(--teal-pale);}
   .cal-cell.other-month{background:var(--paper);color:var(--ink-faint);}
+  .cal-cell.weekend{background:var(--paper);}
+  .cal-cell.weekend .cal-daynum{color:var(--ink-faint);}
   .cal-cell.today{box-shadow:inset 0 0 0 2px var(--teal);}
   .cal-cell.today .cal-daynum{color:var(--teal-dark);}
   .cal-cell.locked{
@@ -544,11 +546,12 @@ function renderCalendar(){
     const d = new Date(startDate); d.setDate(startDate.getDate()+i);
     const iso = isoDate(d);
     const inMonth = d.getMonth()===month;
+    const isWeekend = d.getDay()===0 || d.getDay()===6;
     const dayOrders = ordersByDate(iso);
     const shown = dayOrders.slice(0,3);
     const extra = dayOrders.length - shown.length;
     html += `
-      <div class="cal-cell ${inMonth?'':'other-month'} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}">
+      <div class="cal-cell ${inMonth?'':'other-month'} ${isWeekend?'weekend':''} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}">
         <div class="cal-daynum">${d.getDate()}</div>
         <div class="cal-tags">
           ${shown.map(o=>{
