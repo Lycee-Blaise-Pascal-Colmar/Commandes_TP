@@ -436,7 +436,7 @@ function fmtMonthKey(iso){
   return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 }
 function findCatalogueMatch(itemName){
-  return catalogue.find(c=>c.nom.toLowerCase()===String(itemName||'').trim().toLowerCase());
+  return catalogue.find(c=>(c.nom||'').toLowerCase()===String(itemName||'').trim().toLowerCase());
 }
 
 function resolveItemRefs(items){
@@ -731,9 +731,9 @@ function renderCatalogue(){
   const categories = getCatalogueCategories();
   const items = [...catalogue]
     .filter(it=> catFilter==='toutes' || (it.categorie||'')===catFilter || (catFilter==='__sans__' && !it.categorie))
-    .filter(it=> !searchTerm || it.nom.toLowerCase().includes(searchTerm))
+    .filter(it=> !searchTerm || (it.nom||'').toLowerCase().includes(searchTerm))
     .filter(it=> !lowStockOnly || (it.quantite!=null && it.quantite<LOW_STOCK_THRESHOLD))
-    .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+    .sort((a,b)=>(a.nom||'').localeCompare(b.nom||'','fr'));
   window._catCurrentList = items;
 
   const groups = new Map();
@@ -750,7 +750,7 @@ function renderCatalogue(){
 
   const rowHtml = it => `
     <div class="cat-row" data-id="${it.id}">
-      <div class="cat-name">${escapeHtml(it.nom)}</div>
+      <div class="cat-name">${it.nom ? escapeHtml(it.nom) : '(article sans nom — à corriger ou supprimer)'}</div>
       <div class="cat-qty"><span class="qty-view ${it.quantite!=null && it.quantite<0 ? 'qty-negative' : ''}">${it.quantite!=null && it.quantite!==''?it.quantite:'—'}</span> <span class="cat-unit">${escapeHtml(it.unite||'')}</span></div>
       <div class="cat-actions">
         <button type="button" data-action="restock-cat" data-id="${it.id}">+ réapprovisionner</button>
@@ -851,7 +851,7 @@ function parseImportText(text){
 
 function renderImportPreview(rows){
   if(!rows.length) return '<div class="err" style="display:block;">Aucun article valide détecté dans le texte fourni.</div>';
-  const existingNames = new Set(catalogue.map(c=>c.nom.toLowerCase()));
+  const existingNames = new Set(catalogue.map(c=>(c.nom||'').toLowerCase()));
   const nbNew = rows.filter(r=>!existingNames.has(r.nom.toLowerCase())).length;
   const nbMaj = rows.length - nbNew;
   return `
@@ -977,7 +977,7 @@ function attachContentHandlers(){
         errEl.style.display = 'block';
         return;
       }
-      const doublon = catalogue.find(it=>it.nom.toLowerCase()===nom.toLowerCase());
+      const doublon = catalogue.find(it=>(it.nom||'').toLowerCase()===nom.toLowerCase());
       if(doublon){
         errEl.textContent = 'Cet article existe déjà dans le catalogue. Utilisez « modifier » pour ajuster sa quantité.';
         errEl.style.display = 'block';
@@ -1062,7 +1062,12 @@ function attachContentHandlers(){
     el.addEventListener('click', async ()=>{
       const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
       if(it && confirm(`Supprimer « ${it.nom} » du catalogue ?`)){
-        await catalogueCol.doc(it.id).delete();
+        try{
+          await catalogueCol.doc(it.id).delete();
+        }catch(err){
+          console.error('Erreur suppression catalogue:', err);
+          alert("La suppression a échoué : " + (err && err.message ? err.message : err));
+        }
       }
     });
   });
@@ -1162,7 +1167,7 @@ function attachContentHandlers(){
 }
 
 async function importCatalogueRows(rows){
-  const existingByName = new Map(catalogue.map(c=>[c.nom.toLowerCase(), c]));
+  const existingByName = new Map(catalogue.map(c=>[(c.nom||'').toLowerCase(), c]));
   const chunks = [];
   for(let i=0;i<rows.length;i+=400) chunks.push(rows.slice(i,i+400)); // limite de sécurité par lot Firestore (500 max)
 
@@ -1389,14 +1394,14 @@ function addModalItemRow(containerId, prefill){
   populateRowDatalist(datalistEl, categorySelect.value);
   categorySelect.addEventListener('change', ()=> populateRowDatalist(datalistEl, categorySelect.value));
   nameInput.addEventListener('input', ()=>{
-    const match = catalogue.find(it=>it.nom.toLowerCase()===nameInput.value.trim().toLowerCase());
+    const match = catalogue.find(it=>(it.nom||'').toLowerCase()===nameInput.value.trim().toLowerCase());
     if(match && match.unite) unitSelect.value = match.unite;
   });
 }
 
 function populateRowDatalist(datalistEl, category){
   if(!datalistEl) return;
-  const items = catalogue.filter(it=> !category || (it.categorie||'')===category);
+  const items = catalogue.filter(it=> it.nom && (!category || (it.categorie||'')===category));
   datalistEl.innerHTML = items
     .slice()
     .sort((a,b)=>a.nom.localeCompare(b.nom,'fr'))
@@ -1754,7 +1759,7 @@ function downloadCatalogueCsv(list){
   const headers = ['Article','Quantité','Unité','Catégorie'];
   const rows = [headers];
   list.forEach(it=>{
-    rows.push([it.nom, it.quantite!=null?it.quantite:'', it.unite||'', it.categorie||'']);
+    rows.push([it.nom||'', it.quantite!=null?it.quantite:'', it.unite||'', it.categorie||'']);
   });
   const csvContent = rows.map(r=>r.map(csvEscape).join(';')).join('\n');
   const blob = new Blob(['\uFEFF' + csvContent], {type:'text/csv;charset=utf-8;'});
