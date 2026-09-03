@@ -584,6 +584,12 @@ function renderCalendar(){
 function renderAgenda(){
   const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
   const classes = Array.from(new Set(orders.map(o=>o.classe).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr'));
+  if(window._agendaProfFilter && window._agendaProfFilter!=='tous' && !profs.includes(window._agendaProfFilter)){
+    window._agendaProfFilter = 'tous'; // l'enseignant filtré n'a plus aucune commande : on revient au filtre par défaut
+  }
+  if(window._agendaClasseFilter && window._agendaClasseFilter!=='toutes' && !classes.includes(window._agendaClasseFilter)){
+    window._agendaClasseFilter = 'toutes'; // idem pour la classe
+  }
   const profVal = window._agendaProfFilter || 'tous';
   const classeVal = window._agendaClasseFilter || 'toutes';
 
@@ -723,10 +729,13 @@ function renderProtocoleRow(p){
 }
 
 function renderCatalogue(){
+  const categories = getCatalogueCategories();
+  if(window._catCategoryFilter && window._catCategoryFilter!=='toutes' && window._catCategoryFilter!=='__sans__' && !categories.includes(window._catCategoryFilter)){
+    window._catCategoryFilter = 'toutes'; // la catégorie filtrée n'existe plus (renommée/supprimée) : retour au filtre par défaut
+  }
   const catFilter = window._catCategoryFilter || 'toutes';
   const searchTerm = (window._catSearch || '').trim().toLowerCase();
   const lowStockOnly = !!window._catLowStockOnly;
-  const categories = getCatalogueCategories();
   const items = [...catalogue]
     .filter(it=> catFilter==='toutes' || (it.categorie||'')===catFilter || (catFilter==='__sans__' && !it.categorie))
     .filter(it=> !searchTerm || (it.nom||'').toLowerCase().includes(searchTerm))
@@ -1750,7 +1759,7 @@ function openEditOrderModal(order){
 
 function csvEscape(v){
   const s = String(v==null?'':v);
-  if(/[";\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  if(/["\r\n;]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
   return s;
 }
 
