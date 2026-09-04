@@ -42,6 +42,30 @@
   .conn-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);}
   .conn-status.ok{color:var(--teal-dark);}
   .conn-status.err{color:var(--rust);}
+  .top-right{display:flex;align-items:center;gap:12px;}
+  #logout-btn{font-size:12px;padding:6px 10px;}
+
+  .login-screen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .login-box{
+    background:var(--card);border:1px solid var(--border);border-radius:6px;padding:28px 26px;
+    width:100%;max-width:340px;display:flex;flex-direction:column;gap:6px;
+    box-shadow:0 2px 0 var(--border);
+  }
+  .login-box h2{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;margin:0 0 4px;}
+  .login-box .login-sub{font-size:13px;color:var(--ink-soft);margin:0 0 14px;}
+  .login-box label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:8px;}
+  .login-box input{
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:9px 10px;border:1px solid var(--border);
+    border-radius:4px;background:var(--paper);color:var(--ink);
+  }
+  .login-box button{
+    margin-top:16px;padding:10px;border:none;border-radius:4px;background:var(--teal-dark);color:var(--paper);
+    font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .login-box button:hover{background:var(--teal);}
+  .login-box .err{color:var(--rust);font-size:12px;margin-top:8px;}
 
   .prof-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);}
   .prof-legend span{display:inline-flex;align-items:center;gap:5px;}
@@ -252,7 +276,20 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="login-screen" class="login-screen">
+  <form id="login-form" class="login-box">
+    <h2>Connexion</h2>
+    <p class="login-sub">Connectez-vous avec l'identifiant de l'équipe pour accéder à l'agenda.</p>
+    <label>Identifiant</label>
+    <input type="email" id="login-email" value="commande@labosvtstl.fr" autocomplete="username" required>
+    <label>Mot de passe</label>
+    <input type="password" id="login-password" autocomplete="current-password" required>
+    <div class="err" id="login-err" style="display:none;"></div>
+    <button type="submit">Se connecter</button>
+  </form>
+</div>
+
+<div class="wrap" id="app-root" style="display:none;">
   <header class="top">
     <div class="brand">
       <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -267,7 +304,10 @@
         <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
       </div>
     </div>
-    <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
+    <div class="top-right">
+      <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
+      <button id="logout-btn" class="download-btn" type="button">Se déconnecter</button>
+    </div>
   </header>
 
   <div class="toolbar">
@@ -296,6 +336,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script>
 /* =========================================================================
    1) CONFIGURATION FIREBASE — À REMPLIR
@@ -314,6 +355,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 const ordersCol = db.collection('commandes');
 const catalogueCol = db.collection('catalogue');
 const protocolesCol = db.collection('protocoles');
@@ -330,7 +372,9 @@ let currentView = 'cal';
 let importTextValue = '';
 let importPreviewRows = null;
 let cursor = new Date(); cursor.setDate(1);
-let unsubscribe = null;
+let unsubscribeOrders = null;
+let unsubscribeCatalogue = null;
+let unsubscribeProtocoles = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
@@ -390,10 +434,16 @@ function pad(n){ return String(n).padStart(2,'0'); }
 function isoDate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function todayIso(){ return isoDate(new Date()); }
 
+function unsubscribeAll(){
+  if(unsubscribeOrders){ unsubscribeOrders(); unsubscribeOrders = null; }
+  if(unsubscribeCatalogue){ unsubscribeCatalogue(); unsubscribeCatalogue = null; }
+  if(unsubscribeProtocoles){ unsubscribeProtocoles(); unsubscribeProtocoles = null; }
+}
+
 function connectRealtime(){
   const statusEl = document.getElementById('conn-status');
-  if(unsubscribe) unsubscribe();
-  unsubscribe = ordersCol.onSnapshot(
+  unsubscribeAll();
+  unsubscribeOrders = ordersCol.onSnapshot(
     snap=>{
       const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
       orders = all.filter(o=>!o.supprime);
@@ -410,7 +460,7 @@ function connectRealtime(){
       document.getElementById('content').innerHTML = '<div class="empty">Impossible de charger les commandes.<br>Vérifiez la configuration Firebase dans index.html.</div>';
     }
   );
-  catalogueCol.orderBy('nom').onSnapshot(
+  unsubscribeCatalogue = catalogueCol.orderBy('nom').onSnapshot(
     snap=>{
       const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
       catalogue = all.filter(it=>!it.supprime);
@@ -421,7 +471,7 @@ function connectRealtime(){
     },
     err=>{ console.error('Erreur catalogue:', err); }
   );
-  protocolesCol.orderBy('titre').onSnapshot(
+  unsubscribeProtocoles = protocolesCol.orderBy('titre').onSnapshot(
     snap=>{
       const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
       protocoles = all.filter(p=>!p.supprime);
@@ -2003,7 +2053,61 @@ function setActiveView(){
   document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
 }
 
-connectRealtime();
+// --- Authentification ---------------------------------------------------
+let realtimeStarted = false;
+
+auth.onAuthStateChanged(user=>{
+  const loginScreen = document.getElementById('login-screen');
+  const appRoot = document.getElementById('app-root');
+  if(user){
+    loginScreen.style.display = 'none';
+    appRoot.style.display = '';
+    if(!realtimeStarted){
+      realtimeStarted = true;
+      connectRealtime();
+    }
+  }else{
+    realtimeStarted = false;
+    unsubscribeAll();
+    appRoot.style.display = 'none';
+    loginScreen.style.display = 'flex';
+    document.getElementById('login-password').value = '';
+  }
+});
+
+document.getElementById('login-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Connexion…';
+  try{
+    await auth.signInWithEmailAndPassword(email, password);
+  }catch(err){
+    console.error(err);
+    const messages = {
+      'auth/invalid-email': 'Identifiant invalide.',
+      'auth/user-not-found': 'Identifiant ou mot de passe incorrect.',
+      'auth/wrong-password': 'Identifiant ou mot de passe incorrect.',
+      'auth/invalid-credential': 'Identifiant ou mot de passe incorrect.',
+      'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.'
+    };
+    errEl.textContent = messages[err.code] || "Connexion impossible. Réessayez.";
+    errEl.style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Se connecter';
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', async ()=>{
+  if(confirm('Se déconnecter de l\'agenda ?')){
+    await auth.signOut();
+  }
+});
 </script>
 </body>
 </html>
