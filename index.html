@@ -284,6 +284,7 @@
       <button id="view-prepare">À préparer</button>
       <button id="view-catalogue">Catalogue</button>
       <button id="view-protocoles">Protocoles</button>
+      <button id="view-corbeille">🗑 Corbeille</button>
     </div>
   </div>
 
@@ -321,6 +322,10 @@ let protocoles = [];
 
 let orders = [];
 let catalogue = [];
+let ordersTrash = [];
+let catalogueTrash = [];
+let protocolesTrash = [];
+const TRASH_RETENTION_DAYS = 30; // purge automatique des éléments supprimés depuis plus de 30 jours
 let currentView = 'cal';
 let importTextValue = '';
 let importPreviewRows = null;
@@ -390,10 +395,13 @@ function connectRealtime(){
   if(unsubscribe) unsubscribe();
   unsubscribe = ordersCol.onSnapshot(
     snap=>{
-      orders = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      orders = all.filter(o=>!o.supprime);
+      ordersTrash = all.filter(o=>o.supprime);
       statusEl.textContent = 'Connecté — mise à jour en temps réel';
       statusEl.className = 'conn-status ok';
       render();
+      purgeExpiredTrash();
     },
     err=>{
       console.error(err);
@@ -404,19 +412,45 @@ function connectRealtime(){
   );
   catalogueCol.orderBy('nom').onSnapshot(
     snap=>{
-      catalogue = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-      if(currentView==='catalogue') render();
+      const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      catalogue = all.filter(it=>!it.supprime);
+      catalogueTrash = all.filter(it=>it.supprime);
+      if(currentView==='catalogue' || currentView==='corbeille') render();
       updateMaterielDatalist();
+      purgeExpiredTrash();
     },
     err=>{ console.error('Erreur catalogue:', err); }
   );
   protocolesCol.orderBy('titre').onSnapshot(
     snap=>{
-      protocoles = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-      if(currentView==='protocoles') render();
+      const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      protocoles = all.filter(p=>!p.supprime);
+      protocolesTrash = all.filter(p=>p.supprime);
+      if(currentView==='protocoles' || currentView==='corbeille') render();
+      purgeExpiredTrash();
     },
     err=>{ console.error('Erreur protocoles:', err); }
   );
+}
+
+let purgeInFlight = false;
+async function purgeExpiredTrash(){
+  if(purgeInFlight) return;
+  purgeInFlight = true;
+  try{
+    const cutoff = Date.now() - TRASH_RETENTION_DAYS*24*60*60*1000;
+    for(const o of ordersTrash){
+      if((o.supprimeLe||0) < cutoff) await deleteOrderAndRestoreStock(o);
+    }
+    for(const it of catalogueTrash){
+      if((it.supprimeLe||0) < cutoff) await catalogueCol.doc(it.id).delete().catch(e=>console.error(e));
+    }
+    for(const p of protocolesTrash){
+      if((p.supprimeLe||0) < cutoff) await protocolesCol.doc(p.id).delete().catch(e=>console.error(e));
+    }
+  } finally {
+    purgeInFlight = false;
+  }
 }
 
 function fmtMonthTitle(d){
@@ -517,6 +551,32 @@ async function deleteOrderAndRestoreStock(order){
     alert("La suppression a échoué. Réessayez.");
   }
 }
+// --- Corbeille : suppression douce (réversible) — le stock n'est PAS restitué tant que
+// l'élément n'est pas purgé définitivement (voir purgeExpiredTrash / deleteOrderAndRestoreStock).
+async function softDeleteOrder(order){
+  try{ await ordersCol.doc(order.id).update({ supprime:true, supprimeLe: Date.now() }); }
+  catch(err){ console.error(err); alert("La mise à la corbeille a échoué. Réessayez."); }
+}
+async function restoreOrder(order){
+  try{ await ordersCol.doc(order.id).update({ supprime:false, supprimeLe: null }); }
+  catch(err){ console.error(err); alert("La restauration a échoué. Réessayez."); }
+}
+async function softDeleteCatalogueItem(it){
+  try{ await catalogueCol.doc(it.id).update({ supprime:true, supprimeLe: Date.now() }); }
+  catch(err){ console.error(err); alert("La mise à la corbeille a échoué. Réessayez."); }
+}
+async function restoreCatalogueItem(it){
+  try{ await catalogueCol.doc(it.id).update({ supprime:false, supprimeLe: null }); }
+  catch(err){ console.error(err); alert("La restauration a échoué. Réessayez."); }
+}
+async function softDeleteProtocole(p){
+  try{ await protocolesCol.doc(p.id).update({ supprime:true, supprimeLe: Date.now() }); }
+  catch(err){ console.error(err); alert("La mise à la corbeille a échoué. Réessayez."); }
+}
+async function restoreProtocole(p){
+  try{ await protocolesCol.doc(p.id).update({ supprime:false, supprimeLe: null }); }
+  catch(err){ console.error(err); alert("La restauration a échoué. Réessayez."); }
+}
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -540,6 +600,7 @@ function render(){
   else if(currentView==='agenda') html = renderAgenda();
   else if(currentView==='prepare') html = renderPrepare();
   else if(currentView==='catalogue') html = renderCatalogue();
+  else if(currentView==='corbeille') html = renderCorbeille();
   else html = renderProtocoles();
   document.getElementById('content').innerHTML = html;
   attachContentHandlers();
@@ -725,6 +786,71 @@ function renderProtocoleRow(p){
       </div>
       ${p.notes?`<div class="notes">${escapeHtml(p.notes)}</div>`:''}
       <div class="slip-actions"><button type="button" data-action="delete-proto" data-id="${p.id}">supprimer</button></div>
+    </div>`;
+}
+
+function daysUntilPurge(supprimeLe){
+  if(!supprimeLe) return TRASH_RETENTION_DAYS;
+  const elapsedDays = (Date.now() - supprimeLe) / (24*60*60*1000);
+  return Math.max(0, Math.ceil(TRASH_RETENTION_DAYS - elapsedDays));
+}
+
+function renderCorbeille(){
+  const hasAnything = ordersTrash.length || catalogueTrash.length || protocolesTrash.length;
+  if(!hasAnything){
+    return `<div class="cat-wrap"><div class="cat-intro">La corbeille contient les commandes, articles du catalogue et protocoles supprimés récemment. Ils sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive.</div><div class="empty">La corbeille est vide.</div></div>`;
+  }
+
+  const ordersSorted = [...ordersTrash].sort((a,b)=>(b.supprimeLe||0)-(a.supprimeLe||0));
+  const catSorted = [...catalogueTrash].sort((a,b)=>(b.supprimeLe||0)-(a.supprimeLe||0));
+  const protoSorted = [...protocolesTrash].sort((a,b)=>(b.supprimeLe||0)-(a.supprimeLe||0));
+
+  const ordersHtml = ordersSorted.length ? ordersSorted.map(o=>`
+    <div class="slip">
+      <div class="slip-head">
+        <div>
+          <div class="slip-date">${fmtDateLong(o.date)} — ${escapeHtml(o.prof||'')}${o.classe?` · ${escapeHtml(o.classe)}`:''}</div>
+          <div class="slip-meta">${(o.items||[]).map(it=>`${escapeHtml(it.nom)} (${it.qty}${it.unite?' '+escapeHtml(it.unite):''})`).join(', ')}</div>
+        </div>
+      </div>
+      <div class="slip-meta">Supprimée le ${fmtDateLong(isoDate(new Date(o.supprimeLe||Date.now())))} — purge définitive dans ${daysUntilPurge(o.supprimeLe)} j</div>
+      <div class="slip-actions">
+        <button type="button" data-action="restore-order" data-id="${o.id}">restaurer</button>
+        <button type="button" data-action="purge-order" data-id="${o.id}">supprimer définitivement</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Aucune commande dans la corbeille.</div>';
+
+  const catHtml = catSorted.length ? catSorted.map(it=>`
+    <div class="slip">
+      <div class="slip-head"><div><div class="slip-date">${escapeHtml(it.nom)}</div>
+      <div class="slip-meta">${it.quantite!=null?it.quantite:'—'}${it.unite?' '+escapeHtml(it.unite):''}${it.categorie?' · '+escapeHtml(it.categorie):''}</div></div></div>
+      <div class="slip-meta">Supprimé le ${fmtDateLong(isoDate(new Date(it.supprimeLe||Date.now())))} — purge définitive dans ${daysUntilPurge(it.supprimeLe)} j</div>
+      <div class="slip-actions">
+        <button type="button" data-action="restore-cat" data-id="${it.id}">restaurer</button>
+        <button type="button" data-action="purge-cat" data-id="${it.id}">supprimer définitivement</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Aucun article dans la corbeille.</div>';
+
+  const protoHtml = protoSorted.length ? protoSorted.map(p=>`
+    <div class="slip">
+      <div class="slip-head"><div><div class="slip-date">${escapeHtml(p.titre)}</div>
+      ${(p.classes && p.classes.length) ? `<div class="slip-meta">${p.classes.map(escapeHtml).join(' · ')}</div>` : ''}</div></div>
+      <div class="slip-meta">Supprimé le ${fmtDateLong(isoDate(new Date(p.supprimeLe||Date.now())))} — purge définitive dans ${daysUntilPurge(p.supprimeLe)} j</div>
+      <div class="slip-actions">
+        <button type="button" data-action="restore-proto" data-id="${p.id}">restaurer</button>
+        <button type="button" data-action="purge-proto" data-id="${p.id}">supprimer définitivement</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Aucun protocole dans la corbeille.</div>';
+
+  return `
+    <div class="cat-wrap">
+      <div class="cat-intro">Les éléments supprimés sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive (et, pour les commandes, restitution automatique du matériel au stock).</div>
+      <div class="month-heading">Commandes (${ordersSorted.length})</div>
+      ${ordersHtml}
+      <div class="month-heading">Catalogue (${catSorted.length})</div>
+      ${catHtml}
+      <div class="month-heading">Protocoles (${protoSorted.length})</div>
+      ${protoHtml}
     </div>`;
 }
 
@@ -937,6 +1063,50 @@ function attachPrepareHandlers(root){
 
 function attachContentHandlers(){
   attachPrepareHandlers();
+  document.querySelectorAll('[data-action="restore-order"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const o = ordersTrash.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) await restoreOrder(o);
+    });
+  });
+  document.querySelectorAll('[data-action="purge-order"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const o = ordersTrash.find(x=>x.id===el.getAttribute('data-id'));
+      if(o && confirm('Supprimer définitivement cette commande ? Cette action est irréversible' + (o.stockDeducted ? ' (le matériel sera restitué au stock).' : '.'))){
+        await deleteOrderAndRestoreStock(o);
+      }
+    });
+  });
+  document.querySelectorAll('[data-action="restore-cat"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const it = catalogueTrash.find(x=>x.id===el.getAttribute('data-id'));
+      if(it) await restoreCatalogueItem(it);
+    });
+  });
+  document.querySelectorAll('[data-action="purge-cat"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const it = catalogueTrash.find(x=>x.id===el.getAttribute('data-id'));
+      if(it && confirm(`Supprimer définitivement « ${it.nom} » ? Cette action est irréversible.`)){
+        try{ await catalogueCol.doc(it.id).delete(); }
+        catch(err){ console.error(err); alert("La suppression a échoué : " + (err && err.message ? err.message : err)); }
+      }
+    });
+  });
+  document.querySelectorAll('[data-action="restore-proto"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const p = protocolesTrash.find(x=>x.id===el.getAttribute('data-id'));
+      if(p) await restoreProtocole(p);
+    });
+  });
+  document.querySelectorAll('[data-action="purge-proto"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const p = protocolesTrash.find(x=>x.id===el.getAttribute('data-id'));
+      if(p && confirm(`Supprimer définitivement le protocole « ${p.titre} » ? Cette action est irréversible.`)){
+        try{ await protocolesCol.doc(p.id).delete(); }
+        catch(err){ console.error(err); alert("La suppression a échoué : " + (err && err.message ? err.message : err)); }
+      }
+    });
+  });
   document.querySelectorAll('.cal-cell').forEach(cell=>{
     cell.addEventListener('click', ()=>{
       const iso = cell.getAttribute('data-date');
@@ -968,8 +1138,8 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o && confirm(o.stockDeducted ? 'Supprimer cette commande ? Le matériel déjà décompté sera restitué au stock.' : 'Supprimer définitivement cette commande ?')){
-        await deleteOrderAndRestoreStock(o);
+      if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+        await softDeleteOrder(o);
       }
     });
   });
@@ -1086,13 +1256,8 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="delete-cat"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
-      if(it && confirm(`Supprimer « ${it.nom} » du catalogue ?`)){
-        try{
-          await catalogueCol.doc(it.id).delete();
-        }catch(err){
-          console.error('Erreur suppression catalogue:', err);
-          alert("La suppression a échoué : " + (err && err.message ? err.message : err));
-        }
+      if(it && confirm(`Mettre « ${it.nom} » à la corbeille ? Vous pourrez le restaurer, ou il sera supprimé définitivement après 30 jours.`)){
+        await softDeleteCatalogueItem(it);
       }
     });
   });
@@ -1184,8 +1349,8 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="delete-proto"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const p = protocoles.find(x=>x.id===el.getAttribute('data-id'));
-      if(p && confirm(`Supprimer le protocole « ${p.titre} » ?`)){
-        await protocolesCol.doc(p.id).delete();
+      if(p && confirm(`Mettre le protocole « ${p.titre} » à la corbeille ? Vous pourrez le restaurer, ou il sera supprimé définitivement après 30 jours.`)){
+        await softDeleteProtocole(p);
       }
     });
   });
@@ -1329,8 +1494,8 @@ function openDayModal(iso){
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o && confirm(o.stockDeducted ? 'Supprimer cette commande ? Le matériel déjà décompté sera restitué au stock.' : 'Supprimer définitivement cette commande ?')){
-        await deleteOrderAndRestoreStock(o);
+      if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+        await softDeleteOrder(o);
         openDayModal(iso);
       }
     });
@@ -1828,12 +1993,14 @@ document.getElementById('view-agenda').addEventListener('click', ()=>{ currentVi
 document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
+document.getElementById('view-corbeille').addEventListener('click', ()=>{ currentView='corbeille'; setActiveView(); render(); });
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
   document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
   document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
+  document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
 }
 
 connectRealtime();
