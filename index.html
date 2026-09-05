@@ -129,6 +129,18 @@
   /* List / agenda view */
   .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .prepare-count{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink-soft);margin-right:auto;}
+  .prepare-nav{align-items:center;}
+  .prepare-nav #prepare-prev-week, .prepare-nav #prepare-next-week{
+    font-family:'IBM Plex Mono',monospace;font-size:16px;background:var(--card);
+    border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
+  }
+  .prepare-nav #prepare-prev-week:hover, .prepare-nav #prepare-next-week:hover{border-color:var(--teal);background:var(--teal-pale);}
+  .prepare-week-label{font-family:'IBM Plex Mono',monospace;font-size:14.5px;font-weight:600;text-align:center;min-width:220px;}
+  .prepare-week-label .link-btn{
+    display:block;font-family:'IBM Plex Sans',sans-serif;font-weight:400;font-size:11.5px;color:var(--ink-faint);
+    background:none;border:none;text-decoration:underline;text-underline-offset:2px;cursor:pointer;margin:2px auto 0;
+  }
+  .prepare-week-label .link-btn:hover{color:var(--ink-soft);}
   .cat-lowstock-toggle{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);cursor:pointer;user-select:none;white-space:nowrap;}
   .cat-lowstock-toggle input{width:15px;height:15px;cursor:pointer;accent-color:var(--rust);}
   #cat-search{padding:7px 10px;border:1px solid var(--border);font-family:'IBM Plex Sans',sans-serif;font-size:14px;min-width:180px;}
@@ -379,6 +391,7 @@ let currentView = 'cal';
 let importTextValue = '';
 let importPreviewRows = null;
 let cursor = new Date(); cursor.setDate(1);
+let prepareCursor = mondayOf(todayIso()); // lundi de la semaine affichée dans "À préparer"
 let unsubscribeOrders = null;
 let unsubscribeCatalogue = null;
 let unsubscribeProtocoles = null;
@@ -748,20 +761,37 @@ function renderAgenda(){
   return filtersHtml + body;
 }
 
+function weekRangeLabel(mondayIso){
+  const start = new Date(mondayIso+'T00:00:00');
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return `Semaine du ${fmtDateShort(mondayIso)} au ${fmtDateShort(isoDate(end))} ${end.getFullYear()}`;
+}
+
 function renderPrepare(){
-  const today = todayIso();
-  const list = orders.filter(o=> o.date>=today && !o.prepared).sort((a,b)=>a.date.localeCompare(b.date));
+  const weekStart = prepareCursor;
+  const end = new Date(weekStart+'T00:00:00'); end.setDate(end.getDate()+6);
+  const weekEnd = isoDate(end);
+  const isCurrentWeek = weekStart === mondayOf(todayIso());
+
+  const list = orders.filter(o=> o.date>=weekStart && o.date<=weekEnd).sort((a,b)=>a.date.localeCompare(b.date));
   window._prepareCurrentList = list;
+  const remaining = list.filter(o=>!o.prepared).length;
 
   let header = `
-    <div class="agenda-filters">
-      <div class="prepare-count">${list.length} commande${list.length!==1?'s':''} à préparer, à partir d'aujourd'hui</div>
-      <button type="button" class="download-btn" id="print-prepare-btn">🖨 Imprimer cette liste</button>
+    <div class="agenda-filters prepare-nav">
+      <button type="button" id="prepare-prev-week" title="Semaine précédente">‹</button>
+      <div class="prepare-week-label">
+        <div>${weekRangeLabel(weekStart)}</div>
+        ${!isCurrentWeek ? '<button type="button" id="prepare-today-week" class="link-btn">revenir à cette semaine</button>' : ''}
+      </div>
+      <button type="button" id="prepare-next-week" title="Semaine suivante">›</button>
+      <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine</div>
+      <button type="button" class="download-btn" id="print-prepare-btn">🖨 Imprimer cette semaine</button>
     </div>`;
 
   let body;
   if(list.length===0){
-    body = '<div class="empty">Rien à préparer pour l\'instant 🎉</div>';
+    body = '<div class="empty">Aucune commande cette semaine-là.</div>';
   }else{
     body = '';
     let currentDate = null;
@@ -1126,6 +1156,26 @@ function attachPrepareHandlers(root){
       }
     });
   });
+  const prevWeekBtn = document.getElementById('prepare-prev-week');
+  const nextWeekBtn = document.getElementById('prepare-next-week');
+  const todayWeekBtn = document.getElementById('prepare-today-week');
+  if(prevWeekBtn){
+    prevWeekBtn.addEventListener('click', ()=>{
+      const d = new Date(prepareCursor+'T00:00:00'); d.setDate(d.getDate()-7);
+      prepareCursor = isoDate(d); render();
+    });
+  }
+  if(nextWeekBtn){
+    nextWeekBtn.addEventListener('click', ()=>{
+      const d = new Date(prepareCursor+'T00:00:00'); d.setDate(d.getDate()+7);
+      prepareCursor = isoDate(d); render();
+    });
+  }
+  if(todayWeekBtn){
+    todayWeekBtn.addEventListener('click', ()=>{
+      prepareCursor = mondayOf(todayIso()); render();
+    });
+  }
 }
 
 function attachContentHandlers(){
@@ -1210,7 +1260,7 @@ function attachContentHandlers(){
   }
   const printPrepareBtn = document.getElementById('print-prepare-btn');
   if(printPrepareBtn){
-    printPrepareBtn.addEventListener('click', ()=> printOrdersGrouped('Commandes à préparer', window._prepareCurrentList || []));
+    printPrepareBtn.addEventListener('click', ()=> printOrdersGrouped(weekRangeLabel(prepareCursor), window._prepareCurrentList || []));
   }
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
