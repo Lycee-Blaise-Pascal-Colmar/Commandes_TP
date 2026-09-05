@@ -284,12 +284,18 @@
     #print-area h1{font-family:'IBM Plex Mono',monospace;font-size:21px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
     #print-area h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;}
     #print-area h3.print-day-heading:first-of-type{margin-top:0;}
-    #print-area .print-order{border-bottom:1px solid #999;padding:10px 0;page-break-inside:avoid;}
-    #print-area .print-order h2{font-size:16px;margin:0 0 4px;}
-    #print-area .print-order .meta{font-size:13.5px;color:#333;margin-bottom:6px;}
-    #print-area ul{margin:4px 0 6px;padding-left:18px;}
-    #print-area li{font-size:14px;margin-bottom:2px;}
-    #print-area .print-notes{font-size:13.5px;font-style:italic;color:#333;}
+    #print-area table.print-table{width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto;}
+    #print-area table.print-table th, #print-area table.print-table td{border:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;}
+    #print-area table.print-table th{font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;background:#eee;}
+    #print-area table.print-table td{font-size:13.5px;}
+    #print-area table.print-table tr{page-break-inside:avoid;}
+    #print-area table.print-table td.col-prof{font-weight:600;white-space:nowrap;}
+    #print-area table.print-table td.col-classe .horaire{display:block;font-size:12px;color:#333;margin-top:2px;}
+    #print-area table.print-table ul{margin:0;padding-left:16px;}
+    #print-area table.print-table li{font-size:13.5px;margin-bottom:2px;}
+    #print-area table.print-table .print-notes{font-size:12.5px;font-style:italic;color:#333;margin-top:4px;}
+    #print-area table.print-table .print-protocole{font-size:12.5px;color:#333;margin-top:4px;}
+    #print-area .empty-day{font-size:13.5px;color:#333;margin:0 0 14px;}
   }
 </style>
 </head>
@@ -399,7 +405,7 @@ let unsubscribeProtocoles = null;
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
 const LOW_STOCK_THRESHOLD = 10;
-const CLASSES = ['SVT seconde','SVT première','SVT terminale','Biozone','Enseignement scientifique','BPH première','BPH terminale','Biotech 1STL','Biotech TSTL','Bio-bio 1STL','Biotech seconde'];
+const CLASSES = ['1ST2S BPH','1STL Bio-bio','1STL Biotech','Biozone','Enseignement scientifique','Première SVT','Seconde Biotech','Seconde SVT','Terminale SVT','TST2S BPH','TSTL Biotech'];
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
 const SALLES = ['A128','A130','A132','A134','A138','A142'];
 const CLASSES_SORTED = [...CLASSES].sort((a,b)=>a.localeCompare(b,'fr'));
@@ -1767,15 +1773,25 @@ function updateMaterielDatalist(){
   });
 }
 
-function printOrderHtml(o){
+function printOrderRowHtml(o){
+  const classeSalleParts = [];
+  if(o.classe) classeSalleParts.push(escapeHtml(o.classe));
+  if(o.salle) classeSalleParts.push('Salle '+escapeHtml(o.salle));
+  const classeSalle = classeSalleParts.join(' — ');
+  const horaire = o.horaire ? `<span class="horaire">${escapeHtml(o.horaire)}</span>` : '';
+  const materielParts = [];
+  if(o.items && o.items.length){
+    materielParts.push(`<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>`);
+  }
+  if(o.protocoleTitre) materielParts.push(`<div class="print-protocole">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`);
+  if(o.notes) materielParts.push(`<div class="print-notes">${escapeHtml(o.notes)}</div>`);
+  const materiel = materielParts.join('') || '&nbsp;';
   return `
-    <div class="print-order">
-      <h2>${escapeHtml(o.prof)}${o.classe?' — '+escapeHtml(o.classe):''}</h2>
-      <div class="meta">${o.horaire?'Horaire : '+escapeHtml(o.horaire)+'  ':''}${o.salle?'Salle : '+escapeHtml(o.salle):''}</div>
-      ${(o.items&&o.items.length) ? `<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>` : ''}
-      ${o.protocoleTitre?`<div class="meta">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`:''}
-      ${o.notes?`<div class="print-notes">${escapeHtml(o.notes)}</div>`:''}
-    </div>`;
+    <tr>
+      <td class="col-prof">${escapeHtml(o.prof||'')}</td>
+      <td class="col-classe">${classeSalle}${horaire}</td>
+      <td class="col-materiel">${materiel}</td>
+    </tr>`;
 }
 
 function printOrdersGrouped(title, list){
@@ -1785,10 +1801,18 @@ function printOrdersGrouped(title, list){
     html += `<p>Aucune commande.</p>`;
   }else{
     let currentDate = null;
+    let tableOpen = false;
     list.forEach(o=>{
-      if(o.date!==currentDate){ html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`; currentDate = o.date; }
-      html += printOrderHtml(o);
+      if(o.date!==currentDate){
+        if(tableOpen) html += `</tbody></table>`;
+        html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`;
+        html += `<table class="print-table"><thead><tr><th>Enseignant</th><th>Classe et salle</th><th>Matériel</th></tr></thead><tbody>`;
+        tableOpen = true;
+        currentDate = o.date;
+      }
+      html += printOrderRowHtml(o);
     });
+    if(tableOpen) html += `</tbody></table>`;
   }
   area.innerHTML = html;
   window.print();
