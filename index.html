@@ -283,8 +283,6 @@
     }
     @page{margin:16mm 14mm 18mm;}
     #print-area h1{font-family:'IBM Plex Mono',monospace;font-size:21px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
-    #print-area .print-day-block{page-break-after:always;}
-    #print-area .print-day-block:last-of-type{page-break-after:auto;}
     #print-area h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;}
     #print-area h3.print-day-heading:first-of-type{margin-top:0;}
     #print-area table.print-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto;}
@@ -444,7 +442,7 @@ function renderProfLegend(profList){
   return `<div class="prof-legend">${list.map(p=>{
     const c = getProfColor(p);
     return `<span><i style="background:${c.border};"></i>${escapeHtml(p)}</span>`;
-  }).join('')}<span>⚠ = contient un article en stock bas</span></div>`;
+  }).join('')}</div>`;
 }
 function updateModalProfBg(boxEl, prof){
   if(!boxEl) return;
@@ -559,13 +557,6 @@ function fmtMonthKey(iso){
 }
 function findCatalogueMatch(itemName){
   return catalogue.find(c=>(c.nom||'').toLowerCase()===String(itemName||'').trim().toLowerCase());
-}
-function orderHasLowStockItem(o){
-  if(!o.items || !o.items.length) return false;
-  return o.items.some(it=>{
-    const match = findCatalogueMatch(it.name);
-    return match && match.quantite!=null && match.quantite < LOW_STOCK_THRESHOLD;
-  });
 }
 
 function resolveItemRefs(items){
@@ -730,8 +721,7 @@ function renderCalendar(){
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            const lowStock = orderHasLowStockItem(o);
-            return `<div class="cal-tag ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};" title="${lowStock?'Contient un article en stock bas':''}">${o.prepared?'✓ ':''}${lowStock?'⚠ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
@@ -2018,7 +2008,7 @@ async function exportOrdersPdf(title, list, filename){
     filename: filename,
     html2canvas: {scale:2},
     jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
-    pagebreak: {mode:['css','legacy'], before:'.print-day-block'}
+    pagebreak: {mode:['css','legacy']}
   }).from(wrapper).save();
 }
 
