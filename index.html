@@ -466,16 +466,26 @@ function renderProfLegend(profList){
     return `<span><i style="background:${c.border};"></i>${escapeHtml(p)}</span>`;
   }).join('')}</div>`;
 }
+const PROF_VARS_PROPS = ['--ink','--ink-soft','--ink-faint','--surface','--card','--border','--paper','--paper-line','--teal','--teal-dark','--teal-pale','--amber','--rust'];
+function profVarsCss(c){
+  // Le fond pastel d'un enseignant est toujours clair (par design), donc on fixe
+  // localement une palette claire complète pour rester lisible même en mode sombre.
+  return `--ink:${c.text};--ink-soft:#52604F;--ink-faint:#8A9184;--surface:#ffffff;--card:#F7F8F3;`+
+    `--border:#C7CDBB;--paper:#EDEFE9;--paper-line:#D6DACC;--teal:#2F6B5E;--teal-dark:#1F4A40;`+
+    `--teal-pale:#DCEAE5;--amber:#B9791E;--rust:#A6452F;`;
+}
 function updateModalProfBg(boxEl, prof){
   if(!boxEl) return;
   if(!prof){
     boxEl.style.background = '';
     boxEl.style.borderColor = '';
+    PROF_VARS_PROPS.forEach(p=>boxEl.style.removeProperty(p));
     return;
   }
   const c = getProfColor(prof);
   boxEl.style.background = c.bg;
   boxEl.style.borderColor = c.border;
+  boxEl.style.cssText += ';' + profVarsCss(c);
 }
 
 const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
@@ -1267,7 +1277,7 @@ function renderSlip(o){
   const itemsHtml = (o.items||[]).map(it=>`<li><span>${escapeHtml(it.name)}</span><span class="qty">${it.qty} ${escapeHtml(it.unit)}</span></li>`).join('');
   const c = getProfColor(o.prof);
   return `
-    <div class="slip ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};">
+    <div class="slip ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
       <div class="slip-head">
         <div>
           <div class="slip-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
