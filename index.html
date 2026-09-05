@@ -281,21 +281,31 @@
       display:block !important;position:absolute;left:0;top:0;width:100%;
       font-family:'IBM Plex Sans',sans-serif;color:#000;background:#fff;padding:20px;
     }
+    @page{margin:16mm 14mm 18mm;}
     #print-area h1{font-family:'IBM Plex Mono',monospace;font-size:21px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
+    #print-area .print-day-block{page-break-after:always;}
+    #print-area .print-day-block:last-of-type{page-break-after:auto;}
     #print-area h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;}
     #print-area h3.print-day-heading:first-of-type{margin-top:0;}
-    #print-area table.print-table{width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto;}
-    #print-area table.print-table th, #print-area table.print-table td{border:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;}
+    #print-area table.print-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto;}
+    #print-area table.print-table col.col-prof{width:15%;}
+    #print-area table.print-table col.col-classe{width:22%;}
+    #print-area table.print-table col.col-materiel{width:63%;}
+    #print-area table.print-table th, #print-area table.print-table td{border:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:break-word;}
     #print-area table.print-table th{font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;background:#eee;}
     #print-area table.print-table td{font-size:13.5px;}
     #print-area table.print-table tr{page-break-inside:avoid;}
-    #print-area table.print-table td.col-prof{font-weight:600;white-space:nowrap;}
+    #print-area table.print-table td.col-prof{font-weight:600;}
     #print-area table.print-table td.col-classe .horaire{display:block;font-size:12px;color:#333;margin-top:2px;}
     #print-area table.print-table ul{margin:0;padding-left:16px;}
     #print-area table.print-table li{font-size:13.5px;margin-bottom:2px;}
     #print-area table.print-table .print-notes{font-size:12.5px;font-style:italic;color:#333;margin-top:4px;}
     #print-area table.print-table .print-protocole{font-size:12.5px;color:#333;margin-top:4px;}
     #print-area .empty-day{font-size:13.5px;color:#333;margin:0 0 14px;}
+    #print-area .print-footer{
+      position:fixed;bottom:-14mm;left:0;right:0;font-family:'IBM Plex Mono',monospace;
+      font-size:10px;color:#555;text-align:center;
+    }
   }
 </style>
 </head>
@@ -346,6 +356,8 @@
     <div class="view-toggle">
       <button id="view-cal" class="active">Calendrier</button>
       <button id="view-agenda">Vue d'ensemble</button>
+      <button id="view-parprof">Par enseignant</button>
+      <button id="view-recherche">🔎 Recherche</button>
       <button id="view-prepare">À préparer</button>
       <button id="view-catalogue">Catalogue</button>
       <button id="view-protocoles">Protocoles</button>
@@ -359,6 +371,7 @@
 <div id="modal-root"></div>
 <div id="print-area"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -431,7 +444,7 @@ function renderProfLegend(profList){
   return `<div class="prof-legend">${list.map(p=>{
     const c = getProfColor(p);
     return `<span><i style="background:${c.border};"></i>${escapeHtml(p)}</span>`;
-  }).join('')}</div>`;
+  }).join('')}<span>⚠ = contient un article en stock bas</span></div>`;
 }
 function updateModalProfBg(boxEl, prof){
   if(!boxEl) return;
@@ -546,6 +559,13 @@ function fmtMonthKey(iso){
 }
 function findCatalogueMatch(itemName){
   return catalogue.find(c=>(c.nom||'').toLowerCase()===String(itemName||'').trim().toLowerCase());
+}
+function orderHasLowStockItem(o){
+  if(!o.items || !o.items.length) return false;
+  return o.items.some(it=>{
+    const match = findCatalogueMatch(it.name);
+    return match && match.quantite!=null && match.quantite < LOW_STOCK_THRESHOLD;
+  });
 }
 
 function resolveItemRefs(items){
@@ -674,6 +694,8 @@ function render(){
   let html;
   if(currentView==='cal') html = renderCalendar();
   else if(currentView==='agenda') html = renderAgenda();
+  else if(currentView==='parprof') html = renderParEnseignant();
+  else if(currentView==='recherche') html = renderRecherche();
   else if(currentView==='prepare') html = renderPrepare();
   else if(currentView==='catalogue') html = renderCatalogue();
   else if(currentView==='corbeille') html = renderCorbeille();
@@ -708,7 +730,8 @@ function renderCalendar(){
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            return `<div class="cal-tag ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            const lowStock = orderHasLowStockItem(o);
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};" title="${lowStock?'Contient un article en stock bas':''}">${o.prepared?'✓ ':''}${lowStock?'⚠ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
@@ -767,6 +790,97 @@ function renderAgenda(){
   return filtersHtml + body;
 }
 
+function renderParEnseignant(){
+  const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
+  if(window._profViewFilter && window._profViewFilter!=='tous' && !profs.includes(window._profViewFilter)){
+    window._profViewFilter = 'tous';
+  }
+  const selectedProf = window._profViewFilter || 'tous';
+
+  let html = `<div class="agenda-filters">
+      <select id="profview-select">
+        <option value="tous">Tous les enseignants</option>
+        ${profs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+      </select>
+    </div>`;
+
+  if(profs.length===0){
+    return html + '<div class="empty">Aucune commande enregistrée.</div>';
+  }
+
+  const filteredProfs = selectedProf==='tous' ? profs : [selectedProf];
+  filteredProfs.forEach(p=>{
+    const profOrders = orders.filter(o=>o.prof===p).sort((a,b)=>a.date.localeCompare(b.date));
+    const c = getProfColor(p);
+    html += `<div class="month-heading" style="border-left:4px solid ${c.border};padding-left:8px;">${escapeHtml(p)} — ${profOrders.length} commande${profOrders.length!==1?'s':''}</div>`;
+    if(profOrders.length===0){
+      html += '<div class="empty">Aucune commande.</div>';
+    }else{
+      profOrders.forEach(o=> html += renderSlip(o));
+    }
+  });
+  return html;
+}
+
+function renderSearchResults(q){
+  const query = q.trim().toLowerCase();
+  if(!query){
+    return '<div class="empty">Tapez au moins un mot pour lancer la recherche (enseignant, classe, salle, article, note…).</div>';
+  }
+  const matches = orders.filter(o=>{
+    const haystack = [
+      o.prof, o.classe, o.salle, o.notes, o.protocoleTitre,
+      ...(o.items||[]).map(it=>it.name)
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(query);
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(matches.length===0){
+    return `<div class="empty">Aucun résultat pour « ${escapeHtml(q)} ».</div>`;
+  }
+  let body = `<div class="prepare-count">${matches.length} résultat${matches.length!==1?'s':''}</div>`;
+  let currentMonth = null;
+  for(const o of matches){
+    const mk = fmtMonthKey(o.date);
+    if(mk!==currentMonth){ body += `<div class="month-heading">${mk}</div>`; currentMonth = mk; }
+    body += renderSlip(o);
+  }
+  return body;
+}
+
+function renderRecherche(){
+  const q = window._searchQuery || '';
+  return `
+    <div class="agenda-filters">
+      <input type="text" id="search-input" placeholder="Rechercher un enseignant, une classe, une salle, un article, une note…" value="${escapeHtml(q)}" style="flex:1;min-width:240px;padding:9px 10px;border:1px solid var(--border);border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;background:var(--card);color:var(--ink);">
+    </div>
+    <div id="search-results">${renderSearchResults(q)}</div>`;
+}
+
+function attachSlipActionHandlers(root){
+  root.querySelectorAll('[data-action="delete"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+        await softDeleteOrder(o);
+      }
+    });
+  });
+  root.querySelectorAll('[data-action="duplicate"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openDuplicateModal(o);
+    });
+  });
+  root.querySelectorAll('[data-action="edit-order"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const o = orders.find(x=>x.id===el.getAttribute('data-id'));
+      if(o) openEditOrderModal(o);
+    });
+  });
+  attachPrepareHandlers(root);
+}
+
 function weekRangeLabel(mondayIso){
   const start = new Date(mondayIso+'T00:00:00');
   const end = new Date(start); end.setDate(start.getDate()+6);
@@ -793,6 +907,7 @@ function renderPrepare(){
       <button type="button" id="prepare-next-week" title="Semaine suivante">›</button>
       <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine</div>
       <button type="button" class="download-btn" id="print-prepare-btn">🖨 Imprimer cette semaine</button>
+      <button type="button" class="download-btn" id="pdf-prepare-btn" style="background:var(--teal);border-color:var(--teal);">⬇ PDF</button>
     </div>`;
 
   let body;
@@ -1260,6 +1375,23 @@ function attachContentHandlers(){
     classeSel.value = window._agendaClasseFilter || 'toutes';
     classeSel.addEventListener('change', e=>{ window._agendaClasseFilter = e.target.value; render(); });
   }
+  const profViewSel = document.getElementById('profview-select');
+  if(profViewSel){
+    profViewSel.value = window._profViewFilter || 'tous';
+    profViewSel.addEventListener('change', e=>{ window._profViewFilter = e.target.value; render(); });
+  }
+  const searchInput = document.getElementById('search-input');
+  if(searchInput){
+    searchInput.focus();
+    const pos = searchInput.value.length;
+    searchInput.setSelectionRange(pos, pos);
+    searchInput.addEventListener('input', e=>{
+      window._searchQuery = e.target.value;
+      const resultsEl = document.getElementById('search-results');
+      resultsEl.innerHTML = renderSearchResults(window._searchQuery);
+      attachSlipActionHandlers(resultsEl);
+    });
+  }
   const downloadBtn = document.getElementById('download-csv');
   if(downloadBtn){
     downloadBtn.addEventListener('click', ()=> downloadCsv(window._agendaCurrentList || []));
@@ -1267,6 +1399,10 @@ function attachContentHandlers(){
   const printPrepareBtn = document.getElementById('print-prepare-btn');
   if(printPrepareBtn){
     printPrepareBtn.addEventListener('click', ()=> printOrdersGrouped(weekRangeLabel(prepareCursor), window._prepareCurrentList || []));
+  }
+  const pdfPrepareBtn = document.getElementById('pdf-prepare-btn');
+  if(pdfPrepareBtn){
+    pdfPrepareBtn.addEventListener('click', ()=> exportOrdersPdf(weekRangeLabel(prepareCursor), window._prepareCurrentList || [], `commandes-tp-semaine-${todayIso()}.pdf`));
   }
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -1537,7 +1673,7 @@ function openDayModal(iso){
         </div>
 
         ${dayOrders.length ? `<div class="modal-section-label">Commandes déjà déposées</div>${dayOrders.map(renderSlip).join('')}` : ''}
-        ${dayOrders.length ? `<button type="button" class="add-item-btn" id="print-day-btn">🖶 Imprimer cette journée</button>` : ''}
+        ${dayOrders.length ? `<button type="button" class="add-item-btn" id="print-day-btn">🖶 Imprimer cette journée</button><button type="button" class="add-item-btn" id="pdf-day-btn">⬇ PDF</button>` : ''}
 
         <div class="modal-section-label">Déposer une commande</div>
         <form id="order-form">
@@ -1605,6 +1741,10 @@ function openDayModal(iso){
   const printBtn = document.getElementById('print-day-btn');
   if(printBtn){
     printBtn.addEventListener('click', ()=> printDay(iso));
+  }
+  const pdfDayBtn = document.getElementById('pdf-day-btn');
+  if(pdfDayBtn){
+    pdfDayBtn.addEventListener('click', ()=> pdfDay(iso));
   }
 
   document.getElementById('f-prof').addEventListener('change', (e)=>{
@@ -1794,6 +1934,14 @@ function printOrderRowHtml(o){
     </tr>`;
 }
 
+const PRINT_COLGROUP = `<colgroup><col class="col-prof"><col class="col-classe"><col class="col-materiel"></colgroup>`;
+
+function printFooterHtml(){
+  const now = new Date();
+  const stamp = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  return `<div class="print-footer">Imprimé le ${stamp}</div>`;
+}
+
 function printOrdersGrouped(title, list){
   const area = document.getElementById('print-area');
   let html = `<h1>${escapeHtml(title)}</h1>`;
@@ -1801,25 +1949,85 @@ function printOrdersGrouped(title, list){
     html += `<p>Aucune commande.</p>`;
   }else{
     let currentDate = null;
-    let tableOpen = false;
+    let blockOpen = false;
     list.forEach(o=>{
       if(o.date!==currentDate){
-        if(tableOpen) html += `</tbody></table>`;
+        if(blockOpen) html += `</tbody></table></div>`;
+        html += `<div class="print-day-block">`;
         html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`;
-        html += `<table class="print-table"><thead><tr><th>Enseignant</th><th>Classe et salle</th><th>Matériel</th></tr></thead><tbody>`;
-        tableOpen = true;
+        html += `<table class="print-table">${PRINT_COLGROUP}<thead><tr><th>Enseignant</th><th>Classe et salle</th><th>Matériel</th></tr></thead><tbody>`;
+        blockOpen = true;
         currentDate = o.date;
       }
       html += printOrderRowHtml(o);
     });
-    if(tableOpen) html += `</tbody></table>`;
+    if(blockOpen) html += `</tbody></table></div>`;
   }
+  html += printFooterHtml();
   area.innerHTML = html;
   window.print();
 }
 
+async function exportOrdersPdf(title, list, filename){
+  const area = document.getElementById('print-area');
+  let html = `<h1>${escapeHtml(title)}</h1>`;
+  if(!list || list.length===0){
+    html += `<p>Aucune commande.</p>`;
+  }else{
+    let currentDate = null;
+    let blockOpen = false;
+    list.forEach(o=>{
+      if(o.date!==currentDate){
+        if(blockOpen) html += `</tbody></table></div>`;
+        html += `<div class="print-day-block">`;
+        html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`;
+        html += `<table class="print-table">${PRINT_COLGROUP}<thead><tr><th>Enseignant</th><th>Classe et salle</th><th>Matériel</th></tr></thead><tbody>`;
+        blockOpen = true;
+        currentDate = o.date;
+      }
+      html += printOrderRowHtml(o);
+    });
+    if(blockOpen) html += `</tbody></table></div>`;
+  }
+  html += printFooterHtml();
+
+  if(typeof html2pdf === 'undefined'){
+    alert("La génération de PDF n'a pas pu se charger (connexion internet requise). Utilisez plutôt le bouton Imprimer et choisissez « Enregistrer en PDF » dans la boîte de dialogue.");
+    return;
+  }
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'font-family:IBM Plex Sans,sans-serif;color:#000;background:#fff;padding:4mm;';
+  wrapper.innerHTML = `<style>
+    h1{font-family:'IBM Plex Mono',monospace;font-size:21px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
+    h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;}
+    table.print-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:14px;}
+    table.print-table col.col-prof{width:15%;} table.print-table col.col-classe{width:22%;} table.print-table col.col-materiel{width:63%;}
+    table.print-table th, table.print-table td{border:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:break-word;font-size:13px;}
+    table.print-table th{font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;background:#eee;}
+    td.col-prof{font-weight:600;}
+    td.col-classe .horaire{display:block;font-size:11px;color:#333;margin-top:2px;}
+    table.print-table ul{margin:0;padding-left:16px;}
+    table.print-table li{font-size:13px;margin-bottom:2px;}
+    .print-notes{font-size:12px;font-style:italic;color:#333;margin-top:4px;}
+    .print-protocole{font-size:12px;color:#333;margin-top:4px;}
+    .print-footer{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#555;text-align:center;}
+  </style>${html}`;
+
+  await html2pdf().set({
+    margin: 10,
+    filename: filename,
+    html2canvas: {scale:2},
+    jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
+    pagebreak: {mode:['css','legacy'], before:'.print-day-block'}
+  }).from(wrapper).save();
+}
+
 function printDay(iso){
   printOrdersGrouped(capitalize(fmtDateLong(iso)), ordersByDate(iso));
+}
+
+function pdfDay(iso){
+  exportOrdersPdf(capitalize(fmtDateLong(iso)), ordersByDate(iso), `commandes-tp-${iso}.pdf`);
 }
 
 function mondayOf(iso){
@@ -1837,6 +2045,14 @@ function printWeek(mondayIso){
   printOrdersGrouped(`Semaine du ${fmtDateShort(mondayIso)} au ${fmtDateShort(endIso)}`, weekOrders);
 }
 
+function pdfWeek(mondayIso){
+  const start = new Date(mondayIso+'T00:00:00');
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  const endIso = isoDate(end);
+  const weekOrders = orders.filter(o=> o.date>=mondayIso && o.date<=endIso).sort((a,b)=>a.date.localeCompare(b.date));
+  exportOrdersPdf(`Semaine du ${fmtDateShort(mondayIso)} au ${fmtDateShort(endIso)}`, weekOrders, `commandes-tp-semaine-${mondayIso}.pdf`);
+}
+
 function openPrintWeekModal(){
   const root = document.getElementById('modal-root');
   root.innerHTML = `
@@ -1851,7 +2067,10 @@ function openPrintWeekModal(){
             <label for="pw-date">Choisissez un jour de la semaine à imprimer</label>
             <input type="date" id="pw-date" value="${todayIso()}" required>
           </div>
-          <button type="submit" class="submit-btn">Imprimer</button>
+          <div style="display:flex;gap:8px;">
+            <button type="submit" class="submit-btn" style="flex:1;">🖨 Imprimer</button>
+            <button type="button" class="submit-btn" id="pw-pdf-btn" style="flex:1;background:var(--teal);">⬇ PDF</button>
+          </div>
         </form>
       </div>
     </div>`;
@@ -1863,6 +2082,12 @@ function openPrintWeekModal(){
     if(!iso) return;
     closeModal();
     printWeek(mondayOf(iso));
+  });
+  document.getElementById('pw-pdf-btn').addEventListener('click', ()=>{
+    const iso = document.getElementById('pw-date').value;
+    if(!iso) return;
+    closeModal();
+    pdfWeek(mondayOf(iso));
   });
 }
 
@@ -2226,6 +2451,8 @@ document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = ne
 document.getElementById('print-week-btn').addEventListener('click', ()=> openPrintWeekModal());
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
 document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
+document.getElementById('view-parprof').addEventListener('click', ()=>{ currentView='parprof'; setActiveView(); render(); });
+document.getElementById('view-recherche').addEventListener('click', ()=>{ currentView='recherche'; setActiveView(); render(); });
 document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
@@ -2233,6 +2460,8 @@ document.getElementById('view-corbeille').addEventListener('click', ()=>{ curren
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
   document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
+  document.getElementById('view-parprof').classList.toggle('active', currentView==='parprof');
+  document.getElementById('view-recherche').classList.toggle('active', currentView==='recherche');
   document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
