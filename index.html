@@ -667,6 +667,29 @@ async function restoreProtocole(p){
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+const HORAIRE_TIMES = (()=>{
+  const opts = [];
+  for(let h=8;h<=18;h++){
+    opts.push(h+'h');
+  }
+  return opts;
+})();
+function timeOptionsHtml(selectId, selectedVal){
+  return `<option value="">–</option>` + HORAIRE_TIMES.map(t=>`<option value="${t}" ${t===selectedVal?'selected':''}>${t}</option>`).join('');
+}
+function parseHoraire(horaire){
+  if(!horaire) return {debut:'', fin:''};
+  const parts = String(horaire).split(/\s*(?:-|–|à)\s*/).map(s=>s.trim()).filter(Boolean);
+  if(parts.length===2 && HORAIRE_TIMES.includes(parts[0]) && HORAIRE_TIMES.includes(parts[1])){
+    return {debut:parts[0], fin:parts[1]};
+  }
+  return {debut:'', fin:''};
+}
+function combineHoraire(debut, fin){
+  if(debut && fin) return `${debut} – ${fin}`;
+  return debut || fin || '';
+}
+
 function ordersByDate(iso){
   return orders.filter(o=>o.date===iso).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
 }
@@ -1693,8 +1716,12 @@ function openDayModal(iso){
           </div>
           <div class="field-row">
             <div class="field">
-              <label for="f-horaire">Horaire</label>
-              <input type="text" id="f-horaire" placeholder="Ex. 8h-10h">
+              <label for="f-horaire-debut">Horaire</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <select id="f-horaire-debut" style="flex:1;">${timeOptionsHtml('f-horaire-debut','')}</select>
+                <span>à</span>
+                <select id="f-horaire-fin" style="flex:1;">${timeOptionsHtml('f-horaire-fin','')}</select>
+              </div>
             </div>
             <div class="field">
               <label for="f-salle">Salle</label>
@@ -1786,7 +1813,7 @@ function openDayModal(iso){
     const prof = profSel==='__autre__' ? document.getElementById('f-prof-autre').value.trim() : profSel;
     const classeSel = document.getElementById('f-classe').value;
     const classe = classeSel==='__autre__' ? document.getElementById('f-classe-autre').value.trim() : classeSel;
-    const horaire = document.getElementById('f-horaire').value.trim();
+    const horaire = combineHoraire(document.getElementById('f-horaire-debut').value, document.getElementById('f-horaire-fin').value);
     const salleSel = document.getElementById('f-salle').value;
     const salle = salleSel==='__autre__' ? document.getElementById('f-salle-autre').value.trim() : salleSel;
     const notes = document.getElementById('f-notes').value.trim();
@@ -2143,6 +2170,7 @@ function openEditOrderModal(order){
   const profInList = PROFS_SORTED.includes(order.prof);
   const classeInList = order.classe ? CLASSES_SORTED.includes(order.classe) : true;
   const salleInList = order.salle ? SALLES.includes(order.salle) : true;
+  const parsedHoraire = parseHoraire(order.horaire);
   const matchedProtocole = order.protocoleTitre ? protocoles.find(p=>p.titre===order.protocoleTitre) : null;
 
   root.innerHTML = `
@@ -2183,8 +2211,12 @@ function openEditOrderModal(order){
           </div>
           <div class="field-row">
             <div class="field">
-              <label for="e-horaire">Horaire</label>
-              <input type="text" id="e-horaire" placeholder="Ex. 8h-10h" value="${escapeHtml(order.horaire||'')}">
+              <label for="e-horaire-debut">Horaire</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <select id="e-horaire-debut" style="flex:1;">${timeOptionsHtml('e-horaire-debut',parsedHoraire.debut)}</select>
+                <span>à</span>
+                <select id="e-horaire-fin" style="flex:1;">${timeOptionsHtml('e-horaire-fin',parsedHoraire.fin)}</select>
+              </div>
             </div>
             <div class="field">
               <label for="e-salle">Salle</label>
@@ -2246,7 +2278,7 @@ function openEditOrderModal(order){
     const prof = profSel==='__autre__' ? document.getElementById('e-prof-autre').value.trim() : profSel;
     const classeSel = document.getElementById('e-classe').value;
     const classe = classeSel==='__autre__' ? document.getElementById('e-classe-autre').value.trim() : classeSel;
-    const horaire = document.getElementById('e-horaire').value.trim();
+    const horaire = combineHoraire(document.getElementById('e-horaire-debut').value, document.getElementById('e-horaire-fin').value);
     const salleSel = document.getElementById('e-salle').value;
     const salle = salleSel==='__autre__' ? document.getElementById('e-salle-autre').value.trim() : salleSel;
     const notes = document.getElementById('e-notes').value.trim();
