@@ -351,13 +351,15 @@
         <circle cx="13.8" cy="22.6" r="0.7" fill="currentColor"/>
       </svg>
       <div>
-        <h1>Agenda des commandes — TP SVT/STL</h1>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h1>Agenda des commandes — TP SVT/STL</h1>
+          <button id="theme-toggle-btn" class="top-action-btn" type="button" title="Basculer entre thème clair et sombre" style="font-size:16px;text-decoration:none;">🌙</button>
+        </div>
         <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
       </div>
     </div>
     <div class="top-right">
       <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
-      <button id="theme-toggle-btn" class="top-action-btn" type="button" title="Basculer entre thème clair et sombre">🌙 Mode sombre</button>
       <button id="backup-btn" class="top-action-btn" type="button" title="Télécharger une copie complète des données (commandes, catalogue, protocoles) au format JSON">💾 Sauvegarder</button>
       <button id="logout-btn" class="top-action-btn" type="button">Se déconnecter</button>
     </div>
@@ -443,17 +445,17 @@ const CLASSES_SORTED = [...CLASSES].sort((a,b)=>a.localeCompare(b,'fr'));
 const PROFS_SORTED = [...PROFS].sort((a,b)=>a.localeCompare(b,'fr'));
 const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
-// Code couleur par enseignant : Fred Lincker en bleu pastel, une couleur pastel distincte pour chacun des autres.
+// Code couleur par enseignant : Fred Lincker en bleu, une couleur vive distincte pour chacun des autres.
 const PROF_COLORS = {
-  'Fred Lincker':  { bg:'#DCE8F5', border:'#5D82A6', text:'#2E4A63' },
-  'Fred Lanot':    { bg:'#E4EBD7', border:'#748C4F', text:'#41522C' },
-  'Marina':        { bg:'#F5E2D6', border:'#B87A4C', text:'#6B4326' },
-  'Julien':        { bg:'#E8E0F0', border:'#8A6EB0', text:'#493768' },
-  'Anne-Sophie':   { bg:'#F5DEE6', border:'#B4657F', text:'#6B2F42' },
-  'Catherine':     { bg:'#F3ECCF', border:'#B99A2E', text:'#63501A' },
-  'Marie':         { bg:'#DAEFE8', border:'#4E8C79', text:'#295044' }
+  'Fred Lincker':  { bg:'#CDE4F8', border:'#1E6FB5', text:'#134A72' },
+  'Fred Lanot':    { bg:'#DCEBBE', border:'#5C8F25', text:'#37541B' },
+  'Marina':        { bg:'#F8DAB8', border:'#D9781A', text:'#7A410C' },
+  'Julien':        { bg:'#E4D4F6', border:'#7B39C7', text:'#492272' },
+  'Anne-Sophie':   { bg:'#F8CFE0', border:'#D53E72', text:'#7A1D3D' },
+  'Catherine':     { bg:'#F6E793', border:'#C79A00', text:'#665000' },
+  'Marie':         { bg:'#C2EEDD', border:'#128B6C', text:'#0B4C3B' }
 };
-const DEFAULT_PROF_COLOR = { bg:'#E4E7DC', border:'#8A9184', text:'#52604F' };
+const DEFAULT_PROF_COLOR = { bg:'#DCE0D2', border:'#6D7B60', text:'#3A4433' };
 function getProfColor(prof){
   return PROF_COLORS[prof] || DEFAULT_PROF_COLOR;
 }
@@ -2563,11 +2565,10 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
 // --- Thème sombre ---------------------------------------------------
 function updateThemeButtons(){
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const label = isDark ? '☀️ Mode clair' : '🌙 Mode sombre';
   const btn1 = document.getElementById('theme-toggle-btn');
   const btn2 = document.getElementById('theme-toggle-btn-login');
-  if(btn1) btn1.textContent = label;
-  if(btn2) btn2.textContent = label;
+  if(btn1) btn1.textContent = isDark ? '☀️' : '🌙';
+  if(btn2) btn2.textContent = isDark ? '☀️ Mode clair' : '🌙 Mode sombre';
 }
 function toggleTheme(){
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
