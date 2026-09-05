@@ -42,8 +42,12 @@
   .conn-status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);}
   .conn-status.ok{color:var(--teal-dark);}
   .conn-status.err{color:var(--rust);}
-  .top-right{display:flex;align-items:center;gap:12px;}
-  #logout-btn{font-size:13px;padding:6px 10px;}
+  .top-right{display:flex;align-items:center;gap:14px;}
+  .top-action-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-faint);
+    background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+  }
+  .top-action-btn:hover{color:var(--ink-soft);}
 
   .login-screen{
     min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
@@ -205,6 +209,8 @@
 
   /* Catalogue */
   .cat-intro{font-size:14.5px;color:var(--ink-soft);max-width:640px;margin-bottom:18px;line-height:1.5;}
+  .backup-block{margin-top:24px;padding-top:18px;border-top:1px dashed var(--border);}
+  .backup-block-text{font-size:13.5px;color:var(--ink-soft);max-width:560px;margin-bottom:10px;line-height:1.5;}
   .cat-list{border:1px solid var(--border);background:var(--card);box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
   .cat-row{
     display:grid;grid-template-columns:1fr 140px 150px;gap:10px;align-items:center;
@@ -306,7 +312,8 @@
     </div>
     <div class="top-right">
       <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
-      <button id="logout-btn" class="download-btn" type="button">Se déconnecter</button>
+      <button id="backup-btn" class="top-action-btn" type="button" title="Télécharger une copie complète des données (commandes, catalogue, protocoles) au format JSON">💾 Sauvegarder</button>
+      <button id="logout-btn" class="top-action-btn" type="button">Se déconnecter</button>
     </div>
   </header>
 
@@ -845,10 +852,19 @@ function daysUntilPurge(supprimeLe){
   return Math.max(0, Math.ceil(TRASH_RETENTION_DAYS - elapsedDays));
 }
 
+function renderBackupBlock(){
+  return `
+    <div class="backup-block">
+      <div class="backup-block-text">Vous pouvez restaurer des éléments à partir d'un fichier de sauvegarde téléchargé précédemment (bouton 💾 Sauvegarder en haut de page). Seuls les éléments absents des données actuelles seront recréés — rien d'existant ne sera écrasé.</div>
+      <button type="button" id="restore-backup-btn" class="download-btn">📤 Restaurer depuis une sauvegarde</button>
+      <input type="file" id="restore-backup-input" accept="application/json" style="display:none;">
+    </div>`;
+}
+
 function renderCorbeille(){
   const hasAnything = ordersTrash.length || catalogueTrash.length || protocolesTrash.length;
   if(!hasAnything){
-    return `<div class="cat-wrap"><div class="cat-intro">La corbeille contient les commandes, articles du catalogue et protocoles supprimés récemment. Ils sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive.</div><div class="empty">La corbeille est vide.</div></div>`;
+    return `<div class="cat-wrap"><div class="cat-intro">La corbeille contient les commandes, articles du catalogue et protocoles supprimés récemment. Ils sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive.</div><div class="empty">La corbeille est vide.</div>${renderBackupBlock()}</div>`;
   }
 
   const ordersSorted = [...ordersTrash].sort((a,b)=>(b.supprimeLe||0)-(a.supprimeLe||0));
@@ -901,6 +917,7 @@ function renderCorbeille(){
       ${catHtml}
       <div class="month-heading">Protocoles (${protoSorted.length})</div>
       ${protoHtml}
+      ${renderBackupBlock()}
     </div>`;
 }
 
@@ -1148,6 +1165,16 @@ function attachContentHandlers(){
       if(p) await restoreProtocole(p);
     });
   });
+  const restoreBackupBtn = document.getElementById('restore-backup-btn');
+  const restoreBackupInput = document.getElementById('restore-backup-input');
+  if(restoreBackupBtn && restoreBackupInput){
+    restoreBackupBtn.addEventListener('click', ()=> restoreBackupInput.click());
+    restoreBackupInput.addEventListener('change', async ()=>{
+      const file = restoreBackupInput.files[0];
+      if(file) await restoreFromBackupFile(file);
+      restoreBackupInput.value = '';
+    });
+  }
   document.querySelectorAll('[data-action="purge-proto"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const p = protocolesTrash.find(x=>x.id===el.getAttribute('data-id'));
@@ -1978,6 +2005,91 @@ function csvEscape(v){
   return s;
 }
 
+async function restoreMissingDocs(collectionRef, existingIds, backupDocs){
+  const missing = (backupDocs||[]).filter(d=> d && d.id && !existingIds.has(d.id));
+  if(!missing.length) return 0;
+  const chunks = [];
+  for(let i=0;i<missing.length;i+=400) chunks.push(missing.slice(i,i+400)); // limite de sécurité par lot Firestore (500 max)
+  for(const chunk of chunks){
+    const batch = db.batch();
+    chunk.forEach(d=>{
+      const { id, ...data } = d;
+      batch.set(collectionRef.doc(id), data);
+    });
+    await batch.commit();
+  }
+  return missing.length;
+}
+
+async function restoreFromBackupFile(file){
+  let backup;
+  try{
+    const text = await file.text();
+    backup = JSON.parse(text);
+  }catch(err){
+    alert("Ce fichier n'est pas une sauvegarde JSON valide.");
+    return;
+  }
+  if(!backup || (!Array.isArray(backup.commandes) && !Array.isArray(backup.catalogue) && !Array.isArray(backup.protocoles))){
+    alert("Ce fichier ne ressemble pas à une sauvegarde de l'agenda (structure inattendue).");
+    return;
+  }
+
+  const existingOrderIds = new Set([...orders, ...ordersTrash].map(o=>o.id));
+  const existingCatIds = new Set([...catalogue, ...catalogueTrash].map(c=>c.id));
+  const existingProtoIds = new Set([...protocoles, ...protocolesTrash].map(p=>p.id));
+
+  const missingOrders = (backup.commandes||[]).filter(d=>d && d.id && !existingOrderIds.has(d.id));
+  const missingCat = (backup.catalogue||[]).filter(d=>d && d.id && !existingCatIds.has(d.id));
+  const missingProto = (backup.protocoles||[]).filter(d=>d && d.id && !existingProtoIds.has(d.id));
+  const total = missingOrders.length + missingCat.length + missingProto.length;
+
+  if(total===0){
+    alert("Rien à restaurer : toutes les données de cette sauvegarde sont déjà présentes.");
+    return;
+  }
+
+  const summary = [
+    missingOrders.length ? `${missingOrders.length} commande${missingOrders.length>1?'s':''}` : null,
+    missingCat.length ? `${missingCat.length} article${missingCat.length>1?'s':''} du catalogue` : null,
+    missingProto.length ? `${missingProto.length} protocole${missingProto.length>1?'s':''}` : null
+  ].filter(Boolean).join(', ');
+
+  if(!confirm(`Restaurer ${summary} absent(s) des données actuelles ? Rien d'existant ne sera modifié ni écrasé.`)){
+    return;
+  }
+
+  try{
+    await restoreMissingDocs(ordersCol, existingOrderIds, missingOrders);
+    await restoreMissingDocs(catalogueCol, existingCatIds, missingCat);
+    await restoreMissingDocs(protocolesCol, existingProtoIds, missingProto);
+    alert(`Restauration terminée : ${summary}.`);
+  }catch(err){
+    console.error(err);
+    alert("La restauration a échoué en cours de route. Vérifiez les données et réessayez si besoin — ce qui a déjà été restauré reste en place.");
+  }
+}
+
+function downloadFullBackup(){
+  const backup = {
+    exporteLe: new Date().toISOString(),
+    commandes: [...orders, ...ordersTrash],
+    catalogue: [...catalogue, ...catalogueTrash],
+    protocoles: [...protocoles, ...protocolesTrash]
+  };
+  const jsonContent = JSON.stringify(backup, null, 2);
+  const blob = new Blob([jsonContent], {type:'application/json;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `sauvegarde-agenda-tp-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function downloadCsv(list){
   if(!list || list.length===0){
     alert("Aucune commande à télécharger avec ces filtres.");
@@ -2102,6 +2214,8 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
     submitBtn.textContent = 'Se connecter';
   }
 });
+
+document.getElementById('backup-btn').addEventListener('click', ()=> downloadFullBackup());
 
 document.getElementById('logout-btn').addEventListener('click', async ()=>{
   if(confirm('Se déconnecter de l\'agenda ?')){
