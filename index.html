@@ -301,7 +301,7 @@
     #print-area table.print-table .print-protocole{font-size:12.5px;color:#333;margin-top:4px;}
     #print-area .empty-day{font-size:13.5px;color:#333;margin:0 0 14px;}
     #print-area .print-footer{
-      position:fixed;bottom:-14mm;left:0;right:0;font-family:'IBM Plex Mono',monospace;
+      margin-top:16px;font-family:'IBM Plex Mono',monospace;
       font-size:10px;color:#555;text-align:center;
     }
   }
@@ -353,10 +353,10 @@
     </div>
     <div class="view-toggle">
       <button id="view-cal" class="active">Calendrier</button>
+      <button id="view-prepare">À préparer</button>
       <button id="view-agenda">Vue d'ensemble</button>
       <button id="view-parprof">Par enseignant</button>
       <button id="view-recherche">🔎 Recherche</button>
-      <button id="view-prepare">À préparer</button>
       <button id="view-catalogue">Catalogue</button>
       <button id="view-protocoles">Protocoles</button>
       <button id="view-corbeille">🗑 Corbeille</button>
@@ -2440,19 +2440,19 @@ document.getElementById('next-month').addEventListener('click', ()=>{ cursor.set
 document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = new Date(); cursor.setDate(1); render(); });
 document.getElementById('print-week-btn').addEventListener('click', ()=> openPrintWeekModal());
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
+document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
 document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
 document.getElementById('view-parprof').addEventListener('click', ()=>{ currentView='parprof'; setActiveView(); render(); });
 document.getElementById('view-recherche').addEventListener('click', ()=>{ currentView='recherche'; setActiveView(); render(); });
-document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
 document.getElementById('view-corbeille').addEventListener('click', ()=>{ currentView='corbeille'; setActiveView(); render(); });
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
+  document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
   document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
   document.getElementById('view-parprof').classList.toggle('active', currentView==='parprof');
   document.getElementById('view-recherche').classList.toggle('active', currentView==='recherche');
-  document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
   document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
