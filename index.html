@@ -480,12 +480,16 @@ function updateModalProfBg(boxEl, prof){
     boxEl.style.background = '';
     boxEl.style.borderColor = '';
     PROF_VARS_PROPS.forEach(p=>boxEl.style.removeProperty(p));
+    const h2r = boxEl.querySelector('.modal-top h2');
+    if(h2r) h2r.style.color = '';
     return;
   }
   const c = getProfColor(prof);
   boxEl.style.background = c.bg;
   boxEl.style.borderColor = c.border;
   boxEl.style.cssText += ';' + profVarsCss(c);
+  const h2 = boxEl.querySelector('.modal-top h2');
+  if(h2) h2.style.color = c.text;
 }
 
 const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
@@ -1280,7 +1284,7 @@ function renderSlip(o){
     <div class="slip ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
       <div class="slip-head">
         <div>
-          <div class="slip-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
+          <div class="slip-date" style="color:${c.text};">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
           <div class="slip-meta"><b style="color:${c.text};">${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
         <label class="slip-prepare">
@@ -2142,15 +2146,20 @@ function openPrintWeekModal(){
 
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
 
-function addOneYear(iso){
+function addYears(iso, n){
   const d = new Date(iso+'T00:00:00');
-  d.setFullYear(d.getFullYear()+1);
+  d.setFullYear(d.getFullYear()+n);
   return isoDate(d);
 }
+function addOneYear(iso){ return addYears(iso, 1); }
 
 function openDuplicateModal(order){
   const root = document.getElementById('modal-root');
-  const suggested = addOneYear(order.date);
+  const currentYearIso = addYears(order.date, new Date().getFullYear() - new Date(order.date+'T00:00:00').getFullYear());
+  const nextYearIso = addOneYear(order.date);
+  // Si "cette année" tombe avant le délai minimum (ex. TP déjà passé cette année), on part de la date la plus proche autorisée.
+  const currentYearSuggestion = isOrderable(currentYearIso) ? currentYearIso : minOrderableIso();
+  const suggested = currentYearSuggestion;
   root.innerHTML = `
     <div class="overlay" id="dup-overlay">
       <div class="modal">
@@ -2162,6 +2171,10 @@ function openDuplicateModal(order){
         <div class="field">
           <label for="dup-date">Nouvelle date</label>
           <input type="date" id="dup-date" value="${suggested}" min="${minOrderableIso()}">
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" class="file-btn" id="dup-quick-current" style="flex:1;">Même date, cette année</button>
+            <button type="button" class="file-btn" id="dup-quick-next" style="flex:1;">Même date, l'an prochain</button>
+          </div>
         </div>
         <div id="dup-err" class="err" style="display:none;"></div>
         <button type="button" class="submit-btn" id="dup-confirm">Dupliquer vers cette date</button>
@@ -2170,6 +2183,12 @@ function openDuplicateModal(order){
 
   document.getElementById('dup-close').addEventListener('click', closeModal);
   document.getElementById('dup-overlay').addEventListener('click', e=>{ if(e.target.id==='dup-overlay') closeModal(); });
+  document.getElementById('dup-quick-current').addEventListener('click', ()=>{
+    document.getElementById('dup-date').value = isOrderable(currentYearIso) ? currentYearIso : minOrderableIso();
+  });
+  document.getElementById('dup-quick-next').addEventListener('click', ()=>{
+    document.getElementById('dup-date').value = nextYearIso;
+  });
   document.getElementById('dup-confirm').addEventListener('click', async ()=>{
     const errEl = document.getElementById('dup-err');
     const newDate = document.getElementById('dup-date').value;
