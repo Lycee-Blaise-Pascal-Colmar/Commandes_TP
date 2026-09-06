@@ -108,14 +108,14 @@
   .view-toggle button.active{background:var(--teal-dark);color:#fff;}
 
   /* Calendar */
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--border);border-top:1px solid var(--border);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-left:1px solid var(--border);border-top:1px solid var(--border);}
   .cal-dow{
     font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;
     color:var(--ink-soft);padding:6px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-    background:var(--card);
+    background:var(--card);min-width:0;
   }
   .cal-cell{
-    min-height:96px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    min-height:96px;min-width:0;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
     padding:6px 6px 8px;background:var(--surface);cursor:pointer;position:relative;transition:background .12s ease;
   }
   .cal-cell:hover{background:var(--teal-pale);}
