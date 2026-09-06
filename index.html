@@ -224,6 +224,21 @@
   }
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);}
   textarea{resize:vertical;min-height:48px;}
+  .rte-wrap{border:1px solid var(--border);background:var(--surface);}
+  .rte-toolbar{display:flex;gap:2px;padding:4px;border-bottom:1px solid var(--border);background:var(--paper);}
+  .rte-btn{
+    width:28px;height:26px;border:1px solid transparent;background:none;border-radius:2px;
+    cursor:pointer;color:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:13px;
+  }
+  .rte-btn:hover{border-color:var(--border);background:var(--surface);color:var(--ink);}
+  .rte-editor{
+    width:100%;min-height:48px;max-height:220px;overflow-y:auto;padding:8px 9px;font-size:15px;
+    font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
+  }
+  .rte-editor:focus{outline:none;}
+  .rte-editor:empty:before{content:attr(data-placeholder);color:var(--ink-faint);}
+  .notes b, .print-notes b{font-weight:600;}
+  .notes u, .print-notes u{text-decoration:underline;}
   .item-row{display:grid;grid-template-columns:1fr 58px 78px 24px;gap:6px;margin-bottom:6px;align-items:center;}
   .item-row input{padding:7px 8px;font-size:14px;}
   .item-row button{background:none;border:none;color:var(--rust);cursor:pointer;font-size:16px;padding:4px;}
@@ -447,6 +462,9 @@ const CLASSES = ['1ST2S BPH','1STL Bio-bio','1STL Biotech','Biozone','Enseigneme
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
 const SALLES = ['A128','A130','A132','A134','A138','A142'];
 const CLASSES_SORTED = [...CLASSES].sort((a,b)=>a.localeCompare(b,'fr'));
+// Lien optionnel vers votre espace de stockage (Drive, Nuage, ENT…), affiché comme raccourci
+// pratique dans le formulaire de commande. Laissez vide ('') pour ne rien afficher.
+const DRIVE_FOLDER_URL = 'https://nuage.apps.education.fr/';
 const PROFS_SORTED = [...PROFS].sort((a,b)=>a.localeCompare(b,'fr'));
 const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
@@ -497,11 +515,16 @@ function updateModalProfBg(boxEl, prof){
   if(h2) h2.style.color = c.text;
 }
 
-const MIN_LEAD_DAYS = 2; // délai minimum, en jours, entre le dépôt d'une commande et la date du TP
+const MIN_LEAD_DAYS = 2; // délai minimum, en JOURS OUVRÉS, entre le dépôt d'une commande et la date du TP
 
 function minOrderableIso(){
   const d = new Date();
-  d.setDate(d.getDate() + MIN_LEAD_DAYS);
+  let restant = MIN_LEAD_DAYS;
+  while(restant > 0){
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay(); // 0=dimanche, 6=samedi
+    if(dow !== 0 && dow !== 6) restant--;
+  }
   return isoDate(d);
 }
 function isOrderable(iso){
@@ -783,6 +806,70 @@ async function restoreProtocole(p){
 }
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- Petit éditeur de texte enrichi (gras / italique / souligné) pour les remarques ---------- */
+const RTE_ALLOWED_TAGS = { B:'b', STRONG:'b', I:'i', EM:'i', U:'u' };
+function sanitizeRichText(html){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  function walk(node){
+    let out = '';
+    node.childNodes.forEach(child=>{
+      if(child.nodeType===3){
+        out += escapeHtml(child.nodeValue);
+      }else if(child.nodeType===1){
+        const tag = child.tagName;
+        if(tag==='BR'){
+          out += '<br>';
+        }else if(RTE_ALLOWED_TAGS[tag]){
+          out += `<${RTE_ALLOWED_TAGS[tag]}>${walk(child)}</${RTE_ALLOWED_TAGS[tag]}>`;
+        }else if(tag==='DIV' || tag==='P'){
+          // Les navigateurs insèrent souvent un <div>/<p> par ligne dans les zones éditables.
+          out += (out ? '<br>' : '') + walk(child);
+        }else{
+          out += walk(child); // balise non reconnue : on garde le texte, on retire la balise
+        }
+      }
+    });
+    return out;
+  }
+  return walk(tmp).replace(/(<br>\s*)+$/,''); // pas de retours à la ligne vides en fin de texte
+}
+function richTextToPlain(html){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = (html || '').replace(/<br\s*\/?>/gi, '\n');
+  return (tmp.textContent || '').trim();
+}
+function rteFieldHtml(id, placeholder){
+  return `
+    <div class="rte-wrap">
+      <div class="rte-toolbar">
+        <button type="button" class="rte-btn" data-cmd="bold" data-target="${id}" title="Gras (Ctrl+B)"><b>G</b></button>
+        <button type="button" class="rte-btn" data-cmd="italic" data-target="${id}" title="Italique (Ctrl+I)"><i>I</i></button>
+        <button type="button" class="rte-btn" data-cmd="underline" data-target="${id}" title="Souligné (Ctrl+U)"><u>S</u></button>
+      </div>
+      <div id="${id}" class="rte-editor" contenteditable="true" data-placeholder="${escapeHtml(placeholder||'')}"></div>
+    </div>`;
+}
+function bindRteToolbars(root){
+  (root||document).querySelectorAll('.rte-btn').forEach(btn=>{
+    btn.addEventListener('mousedown', e=> e.preventDefault()); // ne pas perdre la sélection dans l'éditeur
+    btn.addEventListener('click', ()=>{
+      const target = document.getElementById(btn.getAttribute('data-target'));
+      if(target){ target.focus(); document.execCommand(btn.getAttribute('data-cmd'), false, null); }
+    });
+  });
+}
+function setRteContent(id, html){
+  const el = document.getElementById(id);
+  if(el) el.innerHTML = sanitizeRichText(html||'');
+}
+function getRteContent(id){
+  const el = document.getElementById(id);
+  if(!el) return '';
+  if(!el.textContent.trim()) return '';
+  return sanitizeRichText(el.innerHTML);
+}
 
 const HORAIRE_TIMES = (()=>{
   const opts = [];
@@ -1381,7 +1468,7 @@ function renderSlip(o){
       </div>
       ${itemsHtml?`<ul class="items-list">${itemsHtml}</ul>`:''}
       ${o.protocoleTitre?`<div class="notes">Protocole : <a href="${escapeHtml(o.protocoleLien)}" target="_blank" rel="noopener">${escapeHtml(o.protocoleTitre)}</a></div>`:''}
-      ${o.notes?`<div class="notes">${escapeHtml(o.notes)}</div>`:''}
+      ${o.notes?`<div class="notes">${o.notes}</div>`:''}
       <div class="slip-actions">
         <button type="button" data-action="edit-order" data-id="${o.id}">modifier</button>
         <button type="button" data-action="duplicate" data-id="${o.id}">dupliquer</button>
@@ -1849,9 +1936,13 @@ function openDayModal(iso){
           </div>
           <div class="field">
             <label for="f-protocole">Protocole associé (optionnel)</label>
-            <select id="f-protocole">
-              <option value="">Aucun</option>
-            </select>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="f-protocole" style="flex:1;">
+                <option value="">Aucun</option>
+              </select>
+              <button type="button" class="file-btn" id="f-add-proto-btn" style="white-space:nowrap;">+ ajouter un protocole</button>
+            </div>
+            ${quickAddProtoPanelHtml('f')}
           </div>
           <div class="field-row">
             <div class="field">
@@ -1875,11 +1966,15 @@ function openDayModal(iso){
           <div class="field">
             <label>Matériel nécessaire</label>
             <div id="items-container"></div>
-            <button type="button" class="add-item-btn" id="add-item-btn">+ ajouter une ligne</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="add-item-btn" id="add-item-btn">+ ajouter une ligne</button>
+              <button type="button" class="add-item-btn" id="f-mat-import-btn">📥 importer une liste</button>
+            </div>
+            <div id="f-mat-import-panel" class="cat-import" style="display:none;margin-top:10px;"></div>
           </div>
           <div class="field">
             <label for="f-notes">Remarques (optionnel)</label>
-            <textarea id="f-notes" placeholder="Précisions, contraintes particulières…"></textarea>
+            ${rteFieldHtml('f-notes','Précisions, contraintes particulières…')}
           </div>
           <div id="form-err" class="err" style="display:none;"></div>
           <button type="submit" class="submit-btn">Déposer la commande</button>
@@ -1890,6 +1985,7 @@ function openDayModal(iso){
 
   modalItemRowCount = 0;
   addModalItemRow(); addModalItemRow();
+  setupMatImportUI('items-container', 'f');
 
   document.getElementById('close-modal').addEventListener('click', closeModal);
   document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
@@ -1919,6 +2015,8 @@ function openDayModal(iso){
   document.getElementById('f-salle').addEventListener('change', (e)=>{
     document.getElementById('f-salle-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
   });
+  bindRteToolbars(document.getElementById('order-modal-box'));
+  bindQuickAddProto('f', 'f-classe', 'f-protocole');
 
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -1955,7 +2053,7 @@ function openDayModal(iso){
     const horaire = combineHoraire(document.getElementById('f-horaire-debut').value, document.getElementById('f-horaire-fin').value);
     const salleSel = document.getElementById('f-salle').value;
     const salle = salleSel==='__autre__' ? document.getElementById('f-salle-autre').value.trim() : salleSel;
-    const notes = document.getElementById('f-notes').value.trim();
+    const notes = getRteContent('f-notes');
     const protocoleId = document.getElementById('f-protocole').value;
     const protocole = protocoleId ? protocoles.find(p=>p.id===protocoleId) : null;
 
@@ -1996,6 +2094,90 @@ function openDayModal(iso){
       errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
       errEl.style.display = 'block';
     }
+  });
+}
+
+/* ---------- Import rapide d'une liste de matériel dans le formulaire de commande ---------- */
+function matImportPanelInitialHtml(prefix){
+  return `
+    <div class="cat-import-help">Collez une liste copiée depuis un tableur, ou importez un fichier .csv / .txt. Une ligne par article, colonnes <b>matériel, quantité, unité</b> (les deux derniers facultatifs).</div>
+    <textarea id="${prefix}-mat-import-text" rows="4" placeholder="Lame de microscope;50;pièce&#10;Bécher 250 mL;12&#10;Papier pH"></textarea>
+    <div class="cat-import-actions">
+      <label class="file-btn">Choisir un fichier
+        <input type="file" id="${prefix}-mat-import-file" accept=".csv,.txt" hidden>
+      </label>
+      <button type="button" class="add-item-btn" id="${prefix}-mat-import-analyse">Analyser la liste</button>
+      <button type="button" class="add-item-btn" id="${prefix}-mat-import-cancel">Fermer</button>
+    </div>
+    <div id="${prefix}-mat-import-preview"></div>
+  `;
+}
+
+function matImportPreviewHtml(prefix, rows){
+  if(!rows.length) return '<div class="err" style="display:block;">Aucun article valide détecté dans le texte fourni.</div>';
+  return `
+    <ul class="import-list">
+      ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}</li>`).join('')}
+      ${rows.length>40?`<li>… et ${rows.length-40} de plus</li>`:''}
+    </ul>
+    <div class="cat-import-actions">
+      <button type="button" class="submit-btn" id="${prefix}-mat-import-confirm">Ajouter ces ${rows.length} ligne${rows.length>1?'s':''}</button>
+      <button type="button" class="add-item-btn" id="${prefix}-mat-import-cancel2">Annuler</button>
+    </div>
+  `;
+}
+
+function closeMatImportPanel(prefix){
+  const panel = document.getElementById(`${prefix}-mat-import-panel`);
+  if(panel){ panel.style.display = 'none'; panel.innerHTML = ''; }
+}
+
+function wireMatImportPanel(containerId, prefix){
+  const textarea = document.getElementById(`${prefix}-mat-import-text`);
+  const fileInput = document.getElementById(`${prefix}-mat-import-file`);
+  if(fileInput){
+    fileInput.addEventListener('change', ()=>{
+      const file = fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{ textarea.value = reader.result; };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+  const analyseBtn = document.getElementById(`${prefix}-mat-import-analyse`);
+  if(analyseBtn){
+    analyseBtn.addEventListener('click', ()=>{
+      const rows = parseImportText(textarea.value);
+      const previewEl = document.getElementById(`${prefix}-mat-import-preview`);
+      previewEl.innerHTML = matImportPreviewHtml(prefix, rows);
+      const confirmBtn = document.getElementById(`${prefix}-mat-import-confirm`);
+      if(confirmBtn){
+        confirmBtn.addEventListener('click', ()=>{
+          rows.forEach(r=> addModalItemRow(containerId, { name: r.nom, qty: r.quantite, unit: r.unite||'' }));
+          closeMatImportPanel(prefix);
+        });
+      }
+      const cancel2 = document.getElementById(`${prefix}-mat-import-cancel2`);
+      if(cancel2) cancel2.addEventListener('click', ()=> closeMatImportPanel(prefix));
+    });
+  }
+  const cancelBtn = document.getElementById(`${prefix}-mat-import-cancel`);
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=> closeMatImportPanel(prefix));
+}
+
+function setupMatImportUI(containerId, prefix){
+  const toggleBtn = document.getElementById(`${prefix}-mat-import-btn`);
+  const panel = document.getElementById(`${prefix}-mat-import-panel`);
+  if(!toggleBtn || !panel) return;
+  toggleBtn.addEventListener('click', ()=>{
+    const isOpen = panel.style.display !== 'none';
+    if(isOpen){
+      closeMatImportPanel(prefix);
+      return;
+    }
+    panel.style.display = 'block';
+    panel.innerHTML = matImportPanelInitialHtml(prefix);
+    wireMatImportPanel(containerId, prefix);
   });
 }
 
@@ -2061,6 +2243,73 @@ function updateProtocoleOptions(classeSelectionnee, selectId, presetVal){
   if([...sel.options].some(o=>o.value===currentVal)) sel.value = currentVal;
 }
 
+/* ---------- Ajout rapide d'un protocole depuis la fenêtre de dépôt/édition d'une commande ---------- */
+function quickAddProtoPanelHtml(prefix){
+  return `
+    <div id="${prefix}-add-proto-panel" style="display:none;margin-top:8px;padding:10px 12px;border:1px solid var(--border);background:var(--paper);">
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;">Créez le document sur l'espace de stockage de votre choix (Drive, Nuage, autre…)${DRIVE_FOLDER_URL?` — <a href="${escapeHtml(DRIVE_FOLDER_URL)}" target="_blank" rel="noopener">ouvrir mon espace ↗</a>`:''}, puis collez ici son titre et son lien de partage.</div>
+      <div class="field">
+        <label for="${prefix}-proto-titre">Titre du protocole</label>
+        <input type="text" id="${prefix}-proto-titre" placeholder="Ex. Extraction d'ADN de kiwi">
+      </div>
+      <div class="field">
+        <label for="${prefix}-proto-lien">Lien vers le document</label>
+        <input type="text" id="${prefix}-proto-lien" placeholder="https://...">
+      </div>
+      <div id="${prefix}-proto-err" class="err" style="display:none;"></div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="submit-btn" style="margin-top:0;" id="${prefix}-proto-confirm">Ajouter et sélectionner</button>
+        <button type="button" class="file-btn" id="${prefix}-proto-cancel">Annuler</button>
+      </div>
+    </div>`;
+}
+function bindQuickAddProto(prefix, classeFieldId, protocoleSelectId){
+  const openBtn = document.getElementById(prefix+'-add-proto-btn');
+  const panel = document.getElementById(prefix+'-add-proto-panel');
+  if(!openBtn || !panel) return;
+  openBtn.addEventListener('click', ()=>{
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  });
+  const cancelBtn = document.getElementById(prefix+'-proto-cancel');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ panel.style.display = 'none'; });
+  const confirmBtn = document.getElementById(prefix+'-proto-confirm');
+  if(confirmBtn){
+    confirmBtn.addEventListener('click', async ()=>{
+      const errEl = document.getElementById(prefix+'-proto-err');
+      errEl.style.display = 'none';
+      const titre = document.getElementById(prefix+'-proto-titre').value.trim();
+      const lien = document.getElementById(prefix+'-proto-lien').value.trim();
+      if(!titre || !lien){
+        errEl.textContent = 'Indiquez au moins un titre et un lien vers le document.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if(!/^https?:\/\//i.test(lien)){
+        errEl.textContent = 'Le lien doit commencer par http:// ou https://';
+        errEl.style.display = 'block';
+        return;
+      }
+      const classeEl = document.getElementById(classeFieldId);
+      const classeSel = classeEl ? classeEl.value : '';
+      const classeAutreEl = document.getElementById(classeFieldId+'-autre');
+      const classe = classeSel==='__autre__' ? (classeAutreEl?classeAutreEl.value.trim():'') : classeSel;
+      confirmBtn.disabled = true;
+      try{
+        const ref = await protocolesCol.add({ titre, lien, classes: classe?[classe]:[], notes:'', createdAt: Date.now() });
+        updateProtocoleOptions(classeSel, protocoleSelectId, ref.id);
+        panel.style.display = 'none';
+        document.getElementById(prefix+'-proto-titre').value = '';
+        document.getElementById(prefix+'-proto-lien').value = '';
+      }catch(err){
+        errEl.textContent = "L'ajout a échoué. Vérifiez la connexion et réessayez.";
+        errEl.style.display = 'block';
+      }
+      confirmBtn.disabled = false;
+    });
+  }
+}
+
+
 function updateMaterielDatalist(){
   document.querySelectorAll('.item-row').forEach(row=>{
     const categorySelect = row.querySelector('.it-category');
@@ -2080,7 +2329,7 @@ function printOrderRowHtml(o){
     materielParts.push(`<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>`);
   }
   if(o.protocoleTitre) materielParts.push(`<div class="print-protocole">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`);
-  if(o.notes) materielParts.push(`<div class="print-notes">${escapeHtml(o.notes)}</div>`);
+  if(o.notes) materielParts.push(`<div class="print-notes">${o.notes}</div>`);
   const materiel = materielParts.join('') || '&nbsp;';
   return `
     <tr>
@@ -2359,9 +2608,13 @@ function openEditOrderModal(order){
           </div>
           <div class="field">
             <label for="e-protocole">Protocole associé (optionnel)</label>
-            <select id="e-protocole">
-              <option value="">Aucun</option>
-            </select>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="e-protocole" style="flex:1;">
+                <option value="">Aucun</option>
+              </select>
+              <button type="button" class="file-btn" id="e-add-proto-btn" style="white-space:nowrap;">+ ajouter un protocole</button>
+            </div>
+            ${quickAddProtoPanelHtml('e')}
           </div>
           <div class="field-row">
             <div class="field">
@@ -2385,11 +2638,15 @@ function openEditOrderModal(order){
           <div class="field">
             <label>Matériel nécessaire</label>
             <div id="edit-items-container"></div>
-            <button type="button" class="add-item-btn" id="edit-add-item-btn">+ ajouter une ligne</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="add-item-btn" id="edit-add-item-btn">+ ajouter une ligne</button>
+              <button type="button" class="add-item-btn" id="e-mat-import-btn">📥 importer une liste</button>
+            </div>
+            <div id="e-mat-import-panel" class="cat-import" style="display:none;margin-top:10px;"></div>
           </div>
           <div class="field">
             <label for="e-notes">Remarques (optionnel)</label>
-            <textarea id="e-notes" placeholder="Précisions, contraintes particulières…">${escapeHtml(order.notes||'')}</textarea>
+            ${rteFieldHtml('e-notes','Précisions, contraintes particulières…')}
           </div>
           <div id="edit-form-err" class="err" style="display:none;"></div>
           <button type="submit" class="submit-btn">Enregistrer les modifications</button>
@@ -2399,6 +2656,7 @@ function openEditOrderModal(order){
 
   const itemsToLoad = (order.items&&order.items.length) ? order.items : [{}];
   itemsToLoad.forEach(it=> addModalItemRow('edit-items-container', it));
+  setupMatImportUI('edit-items-container', 'e');
 
   document.getElementById('edit-close').addEventListener('click', closeModal);
   document.getElementById('edit-overlay').addEventListener('click', e=>{ if(e.target.id==='edit-overlay') closeModal(); });
@@ -2421,6 +2679,9 @@ function openEditOrderModal(order){
   document.getElementById('e-salle').addEventListener('change', (e)=>{
     document.getElementById('e-salle-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
   });
+  setRteContent('e-notes', order.notes||'');
+  bindRteToolbars(document.getElementById('edit-modal-box'));
+  bindQuickAddProto('e', 'e-classe', 'e-protocole');
 
   document.getElementById('edit-order-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -2435,7 +2696,7 @@ function openEditOrderModal(order){
     const horaire = combineHoraire(document.getElementById('e-horaire-debut').value, document.getElementById('e-horaire-fin').value);
     const salleSel = document.getElementById('e-salle').value;
     const salle = salleSel==='__autre__' ? document.getElementById('e-salle-autre').value.trim() : salleSel;
-    const notes = document.getElementById('e-notes').value.trim();
+    const notes = getRteContent('e-notes');
     const protocoleId = document.getElementById('e-protocole').value;
     const protocole = protocoleId ? protocoles.find(p=>p.id===protocoleId) : null;
 
@@ -2575,12 +2836,13 @@ function downloadCsv(list){
 
   list.forEach(o=>{
     const base = [o.date, o.horaire||'', o.salle||'', o.prof||'', o.classe||''];
+    const notesPlain = o.notes ? richTextToPlain(o.notes) : '';
     if(o.items && o.items.length){
       o.items.forEach(it=>{
-        rows.push([...base, it.name, it.qty, it.unit, o.notes||'']);
+        rows.push([...base, it.name, it.qty, it.unit, notesPlain]);
       });
     }else{
-      rows.push([...base, '', '', '', o.notes||'']);
+      rows.push([...base, '', '', '', notesPlain]);
     }
   });
 
