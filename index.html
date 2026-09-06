@@ -144,6 +144,24 @@
   .cal-tag.dragging{opacity:.4;}
   .cal-cell.drop-target{background:var(--amber-pale)!important;box-shadow:inset 0 0 0 2px var(--amber);}
   .cal-cell.drop-target.drop-copy{background:var(--teal-pale)!important;box-shadow:inset 0 0 0 2px var(--teal);}
+
+  .order-tooltip{
+    position:fixed;z-index:500;width:260px;max-width:calc(100vw - 24px);background:var(--surface);
+    border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.2);
+    padding:10px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink);
+    pointer-events:none;opacity:0;transform:translateY(4px);
+    transition:opacity .1s ease, transform .1s ease;
+  }
+  .order-tooltip.visible{opacity:1;transform:translateY(0);}
+  .order-tooltip .ot-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .order-tooltip .ot-title{font-weight:600;font-size:14px;margin-bottom:2px;}
+  .order-tooltip .ot-meta{color:var(--ink-soft);margin-bottom:6px;}
+  .order-tooltip ul{margin:0 0 0;padding-left:16px;}
+  .order-tooltip li{line-height:1.45;}
+  .order-tooltip li.ot-more{color:var(--ink-faint);list-style:none;margin-left:-16px;}
+  .order-tooltip .ot-notes{margin-top:6px;padding-top:6px;border-top:1px solid var(--paper-line);color:var(--ink-soft);}
+  .order-tooltip .ot-prepared{display:inline-block;margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal-dark);}
+  @media (max-width:700px){ .order-tooltip{display:none!important;} }
   .cal-add-btn{
     position:absolute;top:4px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
     border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink-soft);
@@ -888,6 +906,59 @@ function richTextToPlain(html){
   tmp.innerHTML = (html || '').replace(/<br\s*\/?>/gi, '\n');
   return (tmp.textContent || '').trim();
 }
+
+/* ---------- Bulle d'aperçu au survol d'une commande dans le calendrier ---------- */
+let orderTooltipEl = null;
+function ensureOrderTooltipEl(){
+  if(!orderTooltipEl){
+    orderTooltipEl = document.createElement('div');
+    orderTooltipEl.className = 'order-tooltip';
+    document.body.appendChild(orderTooltipEl);
+  }
+  return orderTooltipEl;
+}
+function renderOrderTooltipHtml(o){
+  const items = o.items || [];
+  const shownItems = items.slice(0,8);
+  const extra = items.length - shownItems.length;
+  const itemsHtml = shownItems.map(it=>`<li>${escapeHtml(it.name)}${it.qty?` — ${it.qty} ${escapeHtml(it.unit||'')}`:''}</li>`).join('');
+  const notesPlain = o.notes ? richTextToPlain(o.notes) : '';
+  const notesShort = notesPlain.length>150 ? notesPlain.slice(0,150)+'…' : notesPlain;
+  return `
+    <div class="ot-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
+    <div class="ot-title">${escapeHtml(o.prof)}</div>
+    <div class="ot-meta">${[o.classe, o.salle?('Salle '+o.salle):null].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</div>
+    ${itemsHtml ? `<ul>${itemsHtml}${extra>0?`<li class="ot-more">+${extra} autre(s)</li>`:''}</ul>` : '<div class="ot-meta">Aucun matériel renseigné</div>'}
+    ${o.protocoleTitre ? `<div class="ot-notes">Protocole : ${escapeHtml(o.protocoleTitre)}</div>` : ''}
+    ${notesShort ? `<div class="ot-notes">${escapeHtml(notesShort)}</div>` : ''}
+    ${o.prepared ? `<div class="ot-prepared">✓ Préparé</div>` : ''}
+    <div class="ot-notes" style="font-style:italic;">Glisser pour déplacer · Ctrl/⌘/Alt + glisser pour dupliquer</div>
+  `;
+}
+function showOrderTooltip(order, anchorEl){
+  const el = ensureOrderTooltipEl();
+  el.innerHTML = renderOrderTooltipHtml(order);
+  el.classList.add('visible');
+  positionOrderTooltip(el, anchorEl);
+}
+function positionOrderTooltip(el, anchorEl){
+  const rect = anchorEl.getBoundingClientRect();
+  const margin = 8;
+  // Mesure la bulle une fois affichée (mais toujours transparente le temps du calcul)
+  const w = el.offsetWidth, h = el.offsetHeight;
+  let top = rect.bottom + margin;
+  if(top + h > window.innerHeight - margin){ top = rect.top - h - margin; } // pas de place en dessous : on passe au-dessus
+  if(top < margin) top = margin;
+  let left = rect.left;
+  if(left + w > window.innerWidth - margin){ left = window.innerWidth - margin - w; }
+  if(left < margin) left = margin;
+  el.style.top = top + 'px';
+  el.style.left = left + 'px';
+}
+function hideOrderTooltip(){
+  if(orderTooltipEl) orderTooltipEl.classList.remove('visible');
+}
+window.addEventListener('scroll', hideOrderTooltip, true);
 function rteFieldHtml(id, placeholder){
   return `
     <div class="rte-wrap">
@@ -1000,7 +1071,7 @@ function renderCalendar(){
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            return `<div class="cal-tag ${o.prepared?'prepared':''}" draggable="true" data-order-id="${o.id}" title="Glisser pour déplacer · Ctrl (ou ⌘/Alt) + glisser pour dupliquer" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" draggable="true" data-order-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
@@ -1641,6 +1712,7 @@ function attachContentHandlers(){
   });
   document.querySelectorAll('.cal-cell').forEach(cell=>{
     cell.addEventListener('click', ()=>{
+      hideOrderTooltip();
       const iso = cell.getAttribute('data-date');
       if(!isOrderable(iso)){
         alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
@@ -1666,8 +1738,14 @@ function attachContentHandlers(){
       e.dataTransfer.effectAllowed = 'copyMove';
       e.dataTransfer.setData('text/plain', tag.getAttribute('data-order-id'));
       tag.classList.add('dragging');
+      hideOrderTooltip();
     });
     tag.addEventListener('dragend', ()=> tag.classList.remove('dragging'));
+    tag.addEventListener('mouseenter', ()=>{
+      const o = orders.find(x=>x.id===tag.getAttribute('data-order-id'));
+      if(o) showOrderTooltip(o, tag);
+    });
+    tag.addEventListener('mouseleave', hideOrderTooltip);
   });
   document.querySelectorAll('.cal-cell').forEach(cell=>{
     cell.addEventListener('dragover', (e)=>{
