@@ -135,6 +135,14 @@
   .cal-cell.locked:hover{background:repeating-linear-gradient(135deg, var(--teal-pale) 0px, var(--teal-pale) 6px, var(--border) 6px, var(--border) 7px);}
   .cal-cell.locked .cal-daynum{color:var(--ink-faint);}
   .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;}
+  .cal-badge{
+    display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;
+    margin-left:5px;padding:0 4px;border-radius:8px;background:var(--teal-dark);color:#fff;
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;vertical-align:2px;
+  }
+  .cal-tag[draggable="true"]{cursor:grab;}
+  .cal-tag.dragging{opacity:.4;}
+  .cal-cell.drop-target{background:var(--amber-pale)!important;box-shadow:inset 0 0 0 2px var(--amber);}
   .cal-add-btn{
     position:absolute;top:4px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
     border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink-soft);
@@ -754,6 +762,20 @@ async function updateOrderAndAdjustStock(order, newData){
   });
 }
 
+// Déplace une commande existante vers une autre date (glisser-déposer dans le calendrier).
+async function moveOrderToDate(order, newIso){
+  try{
+    await updateOrderAndAdjustStock(order, {
+      prof: order.prof, date: newIso, classe: order.classe, horaire: order.horaire, salle: order.salle,
+      items: order.items, notes: order.notes,
+      protocoleTitre: order.protocoleTitre || null, protocoleLien: order.protocoleLien || null
+    });
+  }catch(err){
+    console.error(err);
+    alert("Le déplacement de la commande a échoué. Vérifiez la connexion et réessayez.");
+  }
+}
+
 // Supprime une commande en restituant le stock déjà décompté, le cas échéant.
 async function deleteOrderAndRestoreStock(order){
   if(!order.stockDeducted){
@@ -957,12 +979,12 @@ function renderCalendar(){
     html += `
       <div class="cal-cell ${inMonth?'':'other-month'} ${isWeekend?'weekend':''} ${ferie?'ferie':''} ${vacances&&!ferie?'vacances':''} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}" title="${ferie?escapeHtml(ferie):(vacances?escapeHtml(vacances.label):'')}">
         ${isOrderable(iso)?`<button type="button" class="cal-add-btn" data-date="${iso}" title="Déposer une commande ce jour">+</button>`:''}
-        <div class="cal-daynum">${d.getDate()}</div>
+        <div class="cal-daynum">${d.getDate()}${dayOrders.length?`<span class="cal-badge">${dayOrders.length}</span>`:''}</div>
         ${ferie?`<div class="cal-ferie-label">${escapeHtml(ferie)}</div>`:(vacances?`<div class="cal-vacances-label">${escapeHtml(vacances.label.replace('Vacances de la ','').replace('Vacances de ','').replace("Vacances d'",''))}</div>`:'')}
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            return `<div class="cal-tag ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" draggable="true" data-order-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
@@ -1622,6 +1644,39 @@ function attachContentHandlers(){
       openDayModal(iso, true);
     });
   });
+  document.querySelectorAll('.cal-tag[draggable="true"]').forEach(tag=>{
+    tag.addEventListener('dragstart', (e)=>{
+      e.stopPropagation();
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', tag.getAttribute('data-order-id'));
+      tag.classList.add('dragging');
+    });
+    tag.addEventListener('dragend', ()=> tag.classList.remove('dragging'));
+  });
+  document.querySelectorAll('.cal-cell').forEach(cell=>{
+    cell.addEventListener('dragover', (e)=>{
+      if(!isOrderable(cell.getAttribute('data-date'))) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      cell.classList.add('drop-target');
+    });
+    cell.addEventListener('dragleave', ()=> cell.classList.remove('drop-target'));
+    cell.addEventListener('drop', async (e)=>{
+      e.preventDefault();
+      cell.classList.remove('drop-target');
+      const orderId = e.dataTransfer.getData('text/plain');
+      const newIso = cell.getAttribute('data-date');
+      if(!orderId || !newIso) return;
+      const order = orders.find(o=>o.id===orderId);
+      if(!order || order.date===newIso) return;
+      if(!isOrderable(newIso)){
+        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déplacer une commande.`);
+        return;
+      }
+      if(!confirm(`Déplacer la commande de ${order.prof} du ${fmtDateLong(order.date)} au ${fmtDateLong(newIso)} ?`)) return;
+      await moveOrderToDate(order, newIso);
+    });
+  });
   const profSel = document.getElementById('agenda-prof');
   if(profSel){
     profSel.value = window._agendaProfFilter || 'tous';
@@ -1917,6 +1972,7 @@ async function importCatalogueRows(rows){
 
 /* ---------- Day modal (add / view orders for a given day) ---------- */
 let modalItemRowCount = 0;
+let dayModalState = null; // { iso, showForm } — permet la navigation clavier ← → entre jours
 
 function openDayModal(iso, showForm){
   const root = document.getElementById('modal-root');
@@ -1928,11 +1984,13 @@ function openDayModal(iso, showForm){
   // On n'affiche le formulaire de dépôt d'emblée que si on l'a demandé explicitement
   // (bouton "+"), ou s'il n'y a aucune commande ce jour-là (rien d'autre à montrer).
   const willShowForm = !!showForm || dayOrders.length===0;
+  dayModalState = { iso, showForm: willShowForm };
   root.innerHTML = `
     <div class="overlay" id="overlay">
       <div class="modal" id="order-modal-box">
         <div class="modal-top">
           <h2>${capitalize(fmtDateLong(iso))}${dayNote}</h2>
+
           <button class="close-btn" id="close-modal">✕</button>
         </div>
 
@@ -2492,6 +2550,7 @@ function pdfWeek(mondayIso){
 }
 
 function openPrintWeekModal(){
+  dayModalState = null;
   const root = document.getElementById('modal-root');
   root.innerHTML = `
     <div class="overlay" id="pw-overlay">
@@ -2529,7 +2588,7 @@ function openPrintWeekModal(){
   });
 }
 
-function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+function closeModal(){ dayModalState = null; document.getElementById('modal-root').innerHTML = ''; }
 
 function addYears(iso, n){
   const d = new Date(iso+'T00:00:00');
@@ -2539,6 +2598,7 @@ function addYears(iso, n){
 function addOneYear(iso){ return addYears(iso, 1); }
 
 function openDuplicateModal(order){
+  dayModalState = null;
   const root = document.getElementById('modal-root');
   const currentYearIso = addYears(order.date, new Date().getFullYear() - new Date(order.date+'T00:00:00').getFullYear());
   const nextYearIso = addOneYear(order.date);
@@ -2602,6 +2662,7 @@ function openDuplicateModal(order){
 }
 
 function openEditOrderModal(order){
+  dayModalState = null;
   const root = document.getElementById('modal-root');
   const profInList = PROFS_SORTED.includes(order.prof);
   const classeInList = order.classe ? CLASSES_SORTED.includes(order.classe) : true;
@@ -2914,6 +2975,28 @@ function downloadCatalogueCsv(list){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/* ---------- Raccourcis clavier (modales) ---------- */
+document.addEventListener('keydown', (e)=>{
+  const modalRoot = document.getElementById('modal-root');
+  if(!modalRoot || !modalRoot.firstElementChild) return; // aucune modale ouverte
+
+  if(e.key === 'Escape'){
+    closeModal();
+    return;
+  }
+
+  if((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && dayModalState){
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    const isEditingField = ['INPUT','SELECT','TEXTAREA'].includes(activeTag)
+      || (document.activeElement && document.activeElement.isContentEditable);
+    if(isEditingField) return; // laisser les flèches fonctionner normalement dans les champs
+    e.preventDefault();
+    const d = new Date(dayModalState.iso + 'T00:00:00');
+    d.setDate(d.getDate() + (e.key === 'ArrowRight' ? 1 : -1));
+    openDayModal(isoDate(d), dayModalState.showForm);
+  }
+});
 
 /* ---------- Nav ---------- */
 document.getElementById('prev-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()-1); render(); });
