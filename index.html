@@ -143,6 +143,7 @@
   .cal-tag[draggable="true"]{cursor:grab;}
   .cal-tag.dragging{opacity:.4;}
   .cal-cell.drop-target{background:var(--amber-pale)!important;box-shadow:inset 0 0 0 2px var(--amber);}
+  .cal-cell.drop-target.drop-copy{background:var(--teal-pale)!important;box-shadow:inset 0 0 0 2px var(--teal);}
   .cal-add-btn{
     position:absolute;top:4px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
     border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink-soft);
@@ -776,6 +777,21 @@ async function moveOrderToDate(order, newIso){
   }
 }
 
+// Duplique une commande existante vers une autre date (glisser-déposer avec Ctrl/⌘/Alt enfoncé),
+// sans toucher à la commande d'origine. Décompte à nouveau le stock, comme une commande indépendante.
+async function duplicateOrderToDate(order, newIso){
+  try{
+    await createOrderAndDeductStock({
+      prof: order.prof, date: newIso, classe: order.classe||'', horaire: order.horaire||'',
+      salle: order.salle||'', items: order.items||[], notes: order.notes||'',
+      protocoleTitre: order.protocoleTitre||null, protocoleLien: order.protocoleLien||null
+    });
+  }catch(err){
+    console.error(err);
+    alert("La duplication de la commande a échoué. Vérifiez la connexion et réessayez.");
+  }
+}
+
 // Supprime une commande en restituant le stock déjà décompté, le cas échéant.
 async function deleteOrderAndRestoreStock(order){
   if(!order.stockDeducted){
@@ -984,7 +1000,7 @@ function renderCalendar(){
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            return `<div class="cal-tag ${o.prepared?'prepared':''}" draggable="true" data-order-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" draggable="true" data-order-id="${o.id}" title="Glisser pour déplacer · Ctrl (ou ⌘/Alt) + glisser pour dupliquer" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
@@ -1647,7 +1663,7 @@ function attachContentHandlers(){
   document.querySelectorAll('.cal-tag[draggable="true"]').forEach(tag=>{
     tag.addEventListener('dragstart', (e)=>{
       e.stopPropagation();
-      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.effectAllowed = 'copyMove';
       e.dataTransfer.setData('text/plain', tag.getAttribute('data-order-id'));
       tag.classList.add('dragging');
     });
@@ -1657,24 +1673,33 @@ function attachContentHandlers(){
     cell.addEventListener('dragover', (e)=>{
       if(!isOrderable(cell.getAttribute('data-date'))) return;
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+      const wantsDuplicate = e.ctrlKey || e.metaKey || e.altKey;
+      e.dataTransfer.dropEffect = wantsDuplicate ? 'copy' : 'move';
       cell.classList.add('drop-target');
+      cell.classList.toggle('drop-copy', wantsDuplicate);
     });
-    cell.addEventListener('dragleave', ()=> cell.classList.remove('drop-target'));
+    cell.addEventListener('dragleave', ()=> cell.classList.remove('drop-target','drop-copy'));
     cell.addEventListener('drop', async (e)=>{
       e.preventDefault();
-      cell.classList.remove('drop-target');
+      cell.classList.remove('drop-target','drop-copy');
       const orderId = e.dataTransfer.getData('text/plain');
       const newIso = cell.getAttribute('data-date');
       if(!orderId || !newIso) return;
       const order = orders.find(o=>o.id===orderId);
-      if(!order || order.date===newIso) return;
+      if(!order) return;
+      const wantsDuplicate = e.ctrlKey || e.metaKey || e.altKey;
+      if(!wantsDuplicate && order.date===newIso) return;
       if(!isOrderable(newIso)){
-        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déplacer une commande.`);
+        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y ${wantsDuplicate?'dupliquer':'déplacer'} une commande.`);
         return;
       }
-      if(!confirm(`Déplacer la commande de ${order.prof} du ${fmtDateLong(order.date)} au ${fmtDateLong(newIso)} ?`)) return;
-      await moveOrderToDate(order, newIso);
+      if(wantsDuplicate){
+        if(!confirm(`Dupliquer la commande de ${order.prof} du ${fmtDateLong(order.date)} vers le ${fmtDateLong(newIso)} ?`)) return;
+        await duplicateOrderToDate(order, newIso);
+      }else{
+        if(!confirm(`Déplacer la commande de ${order.prof} du ${fmtDateLong(order.date)} au ${fmtDateLong(newIso)} ?`)) return;
+        await moveOrderToDate(order, newIso);
+      }
     });
   });
   const profSel = document.getElementById('agenda-prof');
