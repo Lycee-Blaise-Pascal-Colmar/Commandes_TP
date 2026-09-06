@@ -135,6 +135,16 @@
   .cal-cell.locked:hover{background:repeating-linear-gradient(135deg, var(--teal-pale) 0px, var(--teal-pale) 6px, var(--border) 6px, var(--border) 7px);}
   .cal-cell.locked .cal-daynum{color:var(--ink-faint);}
   .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;}
+  .cal-add-btn{
+    position:absolute;top:4px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
+    border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;cursor:pointer;padding:0;
+    opacity:0;transition:opacity .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
+    z-index:2;
+  }
+  .cal-cell:hover .cal-add-btn{opacity:1;}
+  .cal-add-btn:hover{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+  @media (max-width:700px){ .cal-add-btn{opacity:1;top:2px;right:2px;width:16px;height:16px;line-height:14px;font-size:11px;} }
   .cal-tags{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
   .cal-tag{
     font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:2px 5px;
@@ -946,6 +956,7 @@ function renderCalendar(){
     const extra = dayOrders.length - shown.length;
     html += `
       <div class="cal-cell ${inMonth?'':'other-month'} ${isWeekend?'weekend':''} ${ferie?'ferie':''} ${vacances&&!ferie?'vacances':''} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}" title="${ferie?escapeHtml(ferie):(vacances?escapeHtml(vacances.label):'')}">
+        ${isOrderable(iso)?`<button type="button" class="cal-add-btn" data-date="${iso}" title="Déposer une commande ce jour">+</button>`:''}
         <div class="cal-daynum">${d.getDate()}</div>
         ${ferie?`<div class="cal-ferie-label">${escapeHtml(ferie)}</div>`:(vacances?`<div class="cal-vacances-label">${escapeHtml(vacances.label.replace('Vacances de la ','').replace('Vacances de ','').replace("Vacances d'",''))}</div>`:'')}
         <div class="cal-tags">
@@ -1597,7 +1608,18 @@ function attachContentHandlers(){
         alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
         return;
       }
-      openDayModal(iso);
+      openDayModal(iso, false);
+    });
+  });
+  document.querySelectorAll('.cal-add-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const iso = btn.getAttribute('data-date');
+      if(!isOrderable(iso)){
+        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
+        return;
+      }
+      openDayModal(iso, true);
     });
   });
   const profSel = document.getElementById('agenda-prof');
@@ -1896,13 +1918,16 @@ async function importCatalogueRows(rows){
 /* ---------- Day modal (add / view orders for a given day) ---------- */
 let modalItemRowCount = 0;
 
-function openDayModal(iso){
+function openDayModal(iso, showForm){
   const root = document.getElementById('modal-root');
   const dayOrders = ordersByDate(iso);
   const ferie = jourFerieLabel(iso);
   const vacances = vacanceInfo(iso);
   const dayNote = ferie ? `<span style="color:var(--amber);font-weight:600;"> — ${escapeHtml(ferie)} (férié)</span>`
     : vacances ? `<span style="color:var(--ink-faint);font-weight:400;"> — ${escapeHtml(vacances.label)}</span>` : '';
+  // On n'affiche le formulaire de dépôt d'emblée que si on l'a demandé explicitement
+  // (bouton "+"), ou s'il n'y a aucune commande ce jour-là (rien d'autre à montrer).
+  const willShowForm = !!showForm || dayOrders.length===0;
   root.innerHTML = `
     <div class="overlay" id="overlay">
       <div class="modal" id="order-modal-box">
@@ -1914,6 +1939,8 @@ function openDayModal(iso){
         ${dayOrders.length ? `<div class="modal-section-label">Commandes déjà déposées</div>${dayOrders.map(renderSlip).join('')}` : ''}
         ${dayOrders.length ? `<button type="button" class="add-item-btn" id="print-day-btn">🖶 Imprimer cette journée</button><button type="button" class="add-item-btn" id="pdf-day-btn">⬇ PDF</button>` : ''}
 
+        ${willShowForm ? '' : `<button type="button" class="submit-btn" id="show-form-btn" style="margin-top:14px;">+ Déposer une commande</button>`}
+        <div id="order-form-wrap" style="display:${willShowForm?'block':'none'};">
         <div class="modal-section-label">Déposer une commande</div>
         <form id="order-form">
           <div class="field">
@@ -1979,9 +2006,15 @@ function openDayModal(iso){
           <div id="form-err" class="err" style="display:none;"></div>
           <button type="submit" class="submit-btn">Déposer la commande</button>
         </form>
+        </div>
       </div>
     </div>
   `;
+
+  const showFormBtn = document.getElementById('show-form-btn');
+  if(showFormBtn){
+    showFormBtn.addEventListener('click', ()=> openDayModal(iso, true));
+  }
 
   modalItemRowCount = 0;
   addModalItemRow(); addModalItemRow();
@@ -2023,7 +2056,7 @@ function openDayModal(iso){
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
       if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
         await softDeleteOrder(o);
-        openDayModal(iso);
+        openDayModal(iso, willShowForm);
       }
     });
   });
@@ -2089,7 +2122,7 @@ function openDayModal(iso){
         protocoleTitre: protocole ? protocole.titre : null,
         protocoleLien: protocole ? protocole.lien : null
       });
-      openDayModal(iso);
+      openDayModal(iso, true);
     }catch(err){
       errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
       errEl.style.display = 'block';
