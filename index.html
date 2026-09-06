@@ -162,6 +162,21 @@
   .order-tooltip .ot-notes{margin-top:6px;padding-top:6px;border-top:1px solid var(--paper-line);color:var(--ink-soft);}
   .order-tooltip .ot-prepared{display:inline-block;margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal-dark);}
   @media (max-width:700px){ .order-tooltip{display:none!important;} }
+
+  .ctx-menu{
+    position:fixed;z-index:600;min-width:170px;background:var(--surface);border:1px solid var(--border);
+    border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.22);padding:4px;font-family:'IBM Plex Sans',sans-serif;
+    font-size:13.5px;display:none;
+  }
+  .ctx-menu.visible{display:block;}
+  .ctx-menu button{
+    display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:none;background:none;
+    border-radius:4px;text-align:left;cursor:pointer;color:var(--ink);font-family:inherit;font-size:inherit;
+  }
+  .ctx-menu button:hover{background:var(--paper-line);}
+  .ctx-menu button.danger{color:var(--red,#b3311b);}
+  .ctx-menu button.danger:hover{background:rgba(179,49,27,0.1);}
+  .ctx-menu .ctx-header{padding:6px 10px 8px;font-size:11.5px;color:var(--ink-faint);border-bottom:1px solid var(--paper-line);margin-bottom:4px;font-family:'IBM Plex Mono',monospace;}
   .cal-add-btn{
     position:absolute;top:4px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
     border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink-soft);
@@ -959,6 +974,61 @@ function hideOrderTooltip(){
   if(orderTooltipEl) orderTooltipEl.classList.remove('visible');
 }
 window.addEventListener('scroll', hideOrderTooltip, true);
+
+/* ---------- Menu contextuel (clic droit / appui long) sur une commande ---------- */
+let ctxMenuEl = null;
+function ensureCtxMenuEl(){
+  if(!ctxMenuEl){
+    ctxMenuEl = document.createElement('div');
+    ctxMenuEl.className = 'ctx-menu';
+    document.body.appendChild(ctxMenuEl);
+  }
+  return ctxMenuEl;
+}
+function hideCtxMenu(){
+  if(ctxMenuEl) ctxMenuEl.classList.remove('visible');
+}
+function showCtxMenu(order, x, y){
+  hideOrderTooltip();
+  const el = ensureCtxMenuEl();
+  el.innerHTML = `
+    <div class="ctx-header">${escapeHtml(order.prof)} · ${capitalize(fmtDateShort(order.date))}</div>
+    <button type="button" data-act="edit">✏️ Modifier</button>
+    <button type="button" data-act="duplicate">📋 Dupliquer</button>
+    <button type="button" data-act="delete" class="danger">🗑️ Supprimer</button>
+  `;
+  el.classList.add('visible');
+  // Position au point de clic/appui, en restant dans la fenêtre visible
+  const margin = 6;
+  const w = el.offsetWidth, h = el.offsetHeight;
+  let left = x, top = y;
+  if(left + w > window.innerWidth - margin) left = window.innerWidth - margin - w;
+  if(top + h > window.innerHeight - margin) top = window.innerHeight - margin - h;
+  if(left < margin) left = margin;
+  if(top < margin) top = margin;
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+
+  el.querySelector('[data-act="edit"]').addEventListener('click', ()=>{
+    hideCtxMenu();
+    openEditOrderModal(order);
+  });
+  el.querySelector('[data-act="duplicate"]').addEventListener('click', ()=>{
+    hideCtxMenu();
+    openDuplicateModal(order);
+  });
+  el.querySelector('[data-act="delete"]').addEventListener('click', async ()=>{
+    hideCtxMenu();
+    if(confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+      await softDeleteOrder(order);
+    }
+  });
+}
+document.addEventListener('click', (e)=>{
+  if(ctxMenuEl && ctxMenuEl.classList.contains('visible') && !ctxMenuEl.contains(e.target)) hideCtxMenu();
+});
+window.addEventListener('scroll', hideCtxMenu, true);
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') hideCtxMenu(); });
 function rteFieldHtml(id, placeholder){
   return `
     <div class="rte-wrap">
@@ -1746,6 +1816,39 @@ function attachContentHandlers(){
       if(o) showOrderTooltip(o, tag);
     });
     tag.addEventListener('mouseleave', hideOrderTooltip);
+    // Clic droit (souris) : menu contextuel immédiat.
+    tag.addEventListener('contextmenu', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const o = orders.find(x=>x.id===tag.getAttribute('data-order-id'));
+      if(o) showCtxMenu(o, e.clientX, e.clientY);
+    });
+    // Appui long (tactile) : même menu contextuel, sans ouvrir la modale du jour.
+    let longPressTimer = null, longPressMoved = false;
+    tag.addEventListener('touchstart', (e)=>{
+      longPressMoved = false;
+      const touch = e.touches[0];
+      const startX = touch.clientX, startY = touch.clientY;
+      longPressTimer = setTimeout(()=>{
+        if(longPressMoved) return;
+        const o = orders.find(x=>x.id===tag.getAttribute('data-order-id'));
+        if(o){
+          if(navigator.vibrate) navigator.vibrate(15);
+          showCtxMenu(o, startX, startY);
+          tag.dataset.suppressClick = '1';
+        }
+      }, 500);
+    }, {passive:true});
+    tag.addEventListener('touchmove', ()=>{ longPressMoved = true; clearTimeout(longPressTimer); }, {passive:true});
+    tag.addEventListener('touchend', ()=> clearTimeout(longPressTimer), {passive:true});
+    tag.addEventListener('touchcancel', ()=> clearTimeout(longPressTimer), {passive:true});
+    tag.addEventListener('click', (e)=>{
+      if(tag.dataset.suppressClick){
+        e.stopPropagation();
+        e.preventDefault();
+        delete tag.dataset.suppressClick;
+      }
+    });
   });
   document.querySelectorAll('.cal-cell').forEach(cell=>{
     cell.addEventListener('dragover', (e)=>{
