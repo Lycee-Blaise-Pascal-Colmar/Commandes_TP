@@ -745,6 +745,16 @@ async function deleteOrderAndRestoreStock(order){
     alert("La suppression a échoué. Réessayez.");
   }
 }
+async function emptyTrash(){
+  try{
+    for(const o of [...ordersTrash]) await deleteOrderAndRestoreStock(o);
+    for(const it of [...catalogueTrash]) await catalogueCol.doc(it.id).delete();
+    for(const p of [...protocolesTrash]) await protocolesCol.doc(p.id).delete();
+  }catch(err){
+    console.error(err);
+    alert("Le vidage de la corbeille a échoué. Réessayez : " + (err && err.message ? err.message : err));
+  }
+}
 // --- Corbeille : suppression douce (réversible) — le stock n'est PAS restitué tant que
 // l'élément n'est pas purgé définitivement (voir purgeExpiredTrash / deleteOrderAndRestoreStock).
 async function softDeleteOrder(order){
@@ -1184,7 +1194,10 @@ function renderCorbeille(){
 
   return `
     <div class="cat-wrap">
-      <div class="cat-intro">Les éléments supprimés sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive (et, pour les commandes, restitution automatique du matériel au stock).</div>
+      <div class="cat-intro" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span>Les éléments supprimés sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive (et, pour les commandes, restitution automatique du matériel au stock).</span>
+        <button type="button" id="empty-trash-btn" class="file-btn" style="white-space:nowrap;">🗑 Vider la corbeille</button>
+      </div>
       <div class="month-heading">Commandes (${ordersSorted.length})</div>
       ${ordersHtml}
       <div class="month-heading">Catalogue (${catSorted.length})</div>
@@ -1424,6 +1437,18 @@ function attachPrepareHandlers(root){
 
 function attachContentHandlers(){
   attachPrepareHandlers();
+  const emptyTrashBtn = document.getElementById('empty-trash-btn');
+  if(emptyTrashBtn){
+    emptyTrashBtn.addEventListener('click', async ()=>{
+      const total = ordersTrash.length + catalogueTrash.length + protocolesTrash.length;
+      const restitution = ordersTrash.some(o=>o.stockDeducted);
+      if(confirm(`Supprimer définitivement les ${total} élément(s) de la corbeille ? Cette action est irréversible` + (restitution ? ' (le matériel des commandes sera restitué au stock).' : '.'))){
+        emptyTrashBtn.disabled = true;
+        await emptyTrash();
+        emptyTrashBtn.disabled = false;
+      }
+    });
+  }
   document.querySelectorAll('[data-action="restore-order"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = ordersTrash.find(x=>x.id===el.getAttribute('data-id'));
