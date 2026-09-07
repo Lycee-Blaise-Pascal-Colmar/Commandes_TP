@@ -99,7 +99,16 @@
     border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
   }
   .month-nav button:hover{border-color:var(--teal);background:var(--teal-pale);}
-  .month-title{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;}
+  .month-title{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;cursor:pointer;border-radius:4px;transition:background .12s ease;}
+  .month-title:hover{background:var(--teal-pale);}
+  .month-quick-nav-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;}
+  .agenda-month-nav{display:flex;align-items:center;gap:6px;}
+  .agenda-month-nav button{
+    font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--card);
+    border:1px solid var(--border);padding:6px 10px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
+  }
+  .agenda-month-nav button:hover:not(:disabled){border-color:var(--teal);background:var(--teal-pale);}
+  .agenda-month-nav button:disabled{opacity:0.35;cursor:default;}
   .view-toggle{display:flex;border:1px solid var(--border);}
   .view-toggle button{
     font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--card);
@@ -477,7 +486,8 @@
   <div class="toolbar">
     <div class="month-nav">
       <button id="prev-month">‹</button>
-      <div class="month-title" id="month-title"></div>
+      <label class="month-title" id="month-title" for="month-quick-nav" title="Cliquer pour aller directement à un mois"></label>
+      <input type="month" id="month-quick-nav" class="month-quick-nav-input" tabindex="-1">
       <button id="next-month">›</button>
       <button id="today-btn">Aujourd'hui</button>
       <button id="print-week-btn" class="download-btn">🖨 Imprimer une semaine</button>
@@ -1131,6 +1141,7 @@ function getCatalogueCategories(){
 function render(){
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
   document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
+  document.getElementById('month-quick-nav').value = `${cursor.getFullYear()}-${pad(cursor.getMonth()+1)}`;
   document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('next-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('today-btn').style.display = currentView==='cal' ? '' : 'none';
@@ -1200,13 +1211,30 @@ function renderAgenda(){
   const profVal = window._agendaProfFilter || 'tous';
   const classeVal = window._agendaClasseFilter || 'toutes';
 
-  let list = orders.filter(o=>{
+  const listBeforeMonth = orders.filter(o=>{
     if(profVal!=='tous' && o.prof!==profVal) return false;
     if(classeVal!=='toutes' && o.classe!==classeVal) return false;
     return true;
   }).sort((a,b)=>a.date.localeCompare(b.date));
 
+  // Mois disponibles (avec au moins une commande), pour la navigation rapide dans le temps.
+  const monthCounts = new Map();
+  listBeforeMonth.forEach(o=>{
+    const mkey = o.date.slice(0,7); // YYYY-MM
+    monthCounts.set(mkey, (monthCounts.get(mkey)||0) + 1);
+  });
+  const monthKeys = [...monthCounts.keys()].sort();
+
+  if(window._agendaMonthFilter && window._agendaMonthFilter!=='tous' && !monthKeys.includes(window._agendaMonthFilter)){
+    window._agendaMonthFilter = 'tous'; // le mois filtré n'a plus de commande : retour au filtre par défaut
+  }
+  const monthVal = window._agendaMonthFilter || 'tous';
+
+  const list = listBeforeMonth.filter(o=> monthVal==='tous' || o.date.slice(0,7)===monthVal);
   window._agendaCurrentList = list;
+
+  const monthLabel = mkey => capitalize(fmtMonthKey(mkey+'-01'));
+  const curIdx = monthKeys.indexOf(monthVal);
 
   let filtersHtml = `
     ${renderProfLegend(profs)}
@@ -1219,6 +1247,14 @@ function renderAgenda(){
         <option value="toutes">Toutes les classes</option>
         ${classes.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
       </select>
+      <div class="agenda-month-nav">
+        <button type="button" id="agenda-month-prev" title="Mois précédent (avec commandes)" ${monthKeys.length===0 || curIdx===0?'disabled':''}>‹</button>
+        <select id="agenda-month">
+          <option value="tous" ${monthVal==='tous'?'selected':''}>Tous les mois</option>
+          ${monthKeys.map(mk=>`<option value="${mk}" ${monthVal===mk?'selected':''}>${monthLabel(mk)} (${monthCounts.get(mk)})</option>`).join('')}
+        </select>
+        <button type="button" id="agenda-month-next" title="Mois suivant (avec commandes)" ${monthKeys.length===0 || curIdx===monthKeys.length-1?'disabled':''}>›</button>
+      </div>
       <button type="button" class="download-btn" id="download-csv">⬇ Télécharger (${list.length})</button>
     </div>`;
 
@@ -2013,6 +2049,31 @@ function attachContentHandlers(){
   if(classeSel){
     classeSel.value = window._agendaClasseFilter || 'toutes';
     classeSel.addEventListener('change', e=>{ window._agendaClasseFilter = e.target.value; render(); });
+  }
+  const monthSel = document.getElementById('agenda-month');
+  if(monthSel){
+    monthSel.value = window._agendaMonthFilter || 'tous';
+    monthSel.addEventListener('change', e=>{ window._agendaMonthFilter = e.target.value; render(); });
+  }
+  const monthPrevBtn = document.getElementById('agenda-month-prev');
+  if(monthPrevBtn){
+    monthPrevBtn.addEventListener('click', ()=>{
+      const opts = [...document.getElementById('agenda-month').options].map(o=>o.value).filter(v=>v!=='tous');
+      if(!opts.length) return;
+      const idx = opts.indexOf(window._agendaMonthFilter);
+      if(idx===-1){ window._agendaMonthFilter = opts[opts.length-1]; render(); }
+      else if(idx>0){ window._agendaMonthFilter = opts[idx-1]; render(); }
+    });
+  }
+  const monthNextBtn = document.getElementById('agenda-month-next');
+  if(monthNextBtn){
+    monthNextBtn.addEventListener('click', ()=>{
+      const opts = [...document.getElementById('agenda-month').options].map(o=>o.value).filter(v=>v!=='tous');
+      if(!opts.length) return;
+      const idx = opts.indexOf(window._agendaMonthFilter);
+      if(idx===-1){ window._agendaMonthFilter = opts[0]; render(); }
+      else if(idx<opts.length-1){ window._agendaMonthFilter = opts[idx+1]; render(); }
+    });
   }
   const profViewSel = document.getElementById('profview-select');
   if(profViewSel){
@@ -3487,6 +3548,13 @@ document.addEventListener('keydown', (e)=>{
 document.getElementById('prev-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()-1); render(); });
 document.getElementById('next-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()+1); render(); });
 document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = new Date(); cursor.setDate(1); render(); });
+document.getElementById('month-quick-nav').addEventListener('change', e=>{
+  const val = e.target.value; // "YYYY-MM"
+  if(!val) return;
+  const [y,m] = val.split('-').map(Number);
+  cursor = new Date(y, m-1, 1);
+  render();
+});
 document.getElementById('print-week-btn').addEventListener('click', ()=> openPrintWeekModal());
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
 document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
