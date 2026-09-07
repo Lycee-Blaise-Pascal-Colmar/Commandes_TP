@@ -239,6 +239,10 @@
   .cat-group-arrow{display:inline-block;font-size:10px;transition:transform .15s ease;transform:rotate(90deg);}
   .cat-group-heading.collapsed .cat-group-arrow{transform:rotate(0deg);}
   .cat-group-count{margin-left:auto;font-weight:500;opacity:0.75;text-transform:none;letter-spacing:normal;}
+  .cat-group-rename{
+    font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;opacity:0.65;line-height:1;
+  }
+  .cat-group-rename:hover{opacity:1;}
   .cat-toggle-all{
     font-family:'IBM Plex Mono',monospace;font-size:12px;background:none;border:1px solid var(--border);
     color:var(--ink-soft);padding:4px 9px;cursor:pointer;border-radius:3px;
@@ -1578,6 +1582,7 @@ function renderCatalogue(){
       <div class="cat-qty"><span class="qty-view ${it.quantite!=null && it.quantite<0 ? 'qty-negative' : ''}">${it.quantite!=null && it.quantite!==''?it.quantite:'—'}</span> <span class="cat-unit">${escapeHtml(it.unite||'')}</span></div>
       <div class="cat-actions">
         <button type="button" class="cat-icon-btn" data-action="restock-cat" data-id="${it.id}" title="Ajouter 1 au stock">+1</button>
+        <button type="button" class="cat-icon-btn" data-action="destock-cat" data-id="${it.id}" title="Retirer 1 du stock">-1</button>
         <button type="button" class="cat-icon-btn" data-action="edit-cat" data-id="${it.id}" title="Modifier">✏️</button>
         <button type="button" class="cat-icon-btn danger" data-action="delete-cat" data-id="${it.id}" title="Supprimer">🗑️</button>
       </div>
@@ -1595,6 +1600,7 @@ function renderCatalogue(){
         <span class="cat-group-arrow">▶</span>
         <span>${key==='__sans__' ? 'Sans catégorie' : escapeHtml(key)}</span>
         <span class="cat-group-count">${groupItems.length}</span>
+        ${key!=='__sans__' ? `<button type="button" class="cat-group-rename" data-action="rename-cat-group" data-group="${escapeHtml(key)}" title="Renommer cette catégorie">✏️</button>` : ''}
       </div>
       ${isCollapsed ? '' : groupItems.map(rowHtml).join('')}
     `;
@@ -1631,6 +1637,7 @@ function renderCatalogue(){
           <input type="checkbox" id="cat-lowstock" ${lowStockOnly?'checked':''}>
           Stock bas seulement (&lt; ${LOW_STOCK_THRESHOLD})
         </label>
+        <button type="button" class="cat-toggle-all" id="cat-reset-filters">✕ Réinitialiser les filtres</button>
         <button type="button" class="cat-toggle-all" id="cat-toggle-all-groups">${allCollapsed ? '▾ Tout déplier' : '▸ Tout replier'}</button>
         <button type="button" class="download-btn" id="download-cat-csv">⬇ Exporter le catalogue (${items.length})</button>
       </div>
@@ -2098,6 +2105,39 @@ function attachContentHandlers(){
   if(catCategoryFilter){
     catCategoryFilter.addEventListener('change', e=>{ window._catCategoryFilter = e.target.value; render(); });
   }
+  const catResetFiltersBtn = document.getElementById('cat-reset-filters');
+  if(catResetFiltersBtn){
+    catResetFiltersBtn.addEventListener('click', ()=>{
+      window._catCategoryFilter = 'toutes';
+      window._catSearch = '';
+      window._catLowStockOnly = false;
+      render();
+    });
+  }
+  document.querySelectorAll('[data-action="rename-cat-group"]').forEach(el=>{
+    el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const oldName = el.getAttribute('data-group');
+      const newName = prompt(`Renommer la catégorie « ${oldName} » en :`, oldName);
+      if(newName===null) return;
+      const trimmed = newName.trim();
+      if(!trimmed || trimmed===oldName) return;
+      const toRename = catalogue.filter(it=>(it.categorie||'')===oldName);
+      if(!toRename.length) return;
+      try{
+        const batch = db.batch();
+        toRename.forEach(it=>{
+          batch.update(catalogueCol.doc(it.id), { categorie: trimmed, updatedAt: Date.now() });
+        });
+        await batch.commit();
+        if(window._catCategoryFilter===oldName) window._catCategoryFilter = trimmed;
+        const collapsed = window._catCollapsedGroups || (window._catCollapsedGroups = loadCollapsedCatGroups());
+        if(collapsed.has(oldName)){ collapsed.delete(oldName); collapsed.add(trimmed); saveCollapsedCatGroups(collapsed); }
+      }catch(err){
+        alert("Le renommage a échoué. Vérifiez la connexion et réessayez.");
+      }
+    });
+  });
   document.querySelectorAll('.cat-group-heading').forEach(el=>{
     el.addEventListener('click', ()=>{
       const key = el.getAttribute('data-group');
@@ -2146,6 +2186,18 @@ function attachContentHandlers(){
         await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) + 1, updatedAt: Date.now() });
       }catch(err){
         alert("Le réapprovisionnement a échoué. Vérifiez la connexion et réessayez.");
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="destock-cat"]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
+      if(!it) return;
+      try{
+        await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) - 1, updatedAt: Date.now() });
+      }catch(err){
+        alert("Le retrait de stock a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   });
