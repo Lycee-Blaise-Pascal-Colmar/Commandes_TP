@@ -99,9 +99,28 @@
     border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
   }
   .month-nav button:hover{border-color:var(--teal);background:var(--teal-pale);}
-  .month-title{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;cursor:pointer;border-radius:4px;transition:background .12s ease;}
+  .month-title{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;cursor:pointer;border-radius:4px;transition:background .12s ease;background:none;border:1px solid transparent;color:var(--ink);padding:4px 6px;}
   .month-title:hover{background:var(--teal-pale);}
-  .month-quick-nav-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;}
+  .month-title-wrap{position:relative;}
+  .month-picker-popover{
+    position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:40;
+    background:var(--card);border:1px solid var(--border);box-shadow:0 6px 18px rgba(30,43,36,0.15);
+    padding:10px;width:230px;
+  }
+  .month-picker-year-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .month-picker-year-nav button{
+    font-family:'IBM Plex Mono',monospace;font-size:14px;background:none;border:1px solid var(--border);
+    padding:3px 9px;cursor:pointer;color:var(--ink);
+  }
+  .month-picker-year-nav button:hover{border-color:var(--teal);background:var(--teal-pale);}
+  .month-picker-year-label{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14.5px;}
+  .month-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .month-picker-grid button{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--surface);border:1px solid var(--border);
+    padding:7px 4px;cursor:pointer;color:var(--ink);text-transform:capitalize;
+  }
+  .month-picker-grid button:hover{border-color:var(--teal);background:var(--teal-pale);}
+  .month-picker-grid button.current{background:var(--teal-dark);border-color:var(--teal-dark);color:#fff;}
   .agenda-month-nav{display:flex;align-items:center;gap:6px;}
   .agenda-month-nav button{
     font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--card);
@@ -486,8 +505,10 @@
   <div class="toolbar">
     <div class="month-nav">
       <button id="prev-month">‹</button>
-      <label class="month-title" id="month-title" for="month-quick-nav" title="Cliquer pour aller directement à un mois"></label>
-      <input type="month" id="month-quick-nav" class="month-quick-nav-input" tabindex="-1">
+      <div class="month-title-wrap">
+        <button type="button" class="month-title" id="month-title" title="Cliquer pour aller directement à un mois"></button>
+        <div class="month-picker-popover" id="month-picker-popover" style="display:none;"></div>
+      </div>
       <button id="next-month">›</button>
       <button id="today-btn">Aujourd'hui</button>
       <button id="print-week-btn" class="download-btn">🖨 Imprimer une semaine</button>
@@ -1138,14 +1159,59 @@ function getCatalogueCategories(){
   return Array.from(new Set([...CATEGORIES, ...fromCatalogue])).sort((a,b)=>a.localeCompare(b,'fr'));
 }
 
+const MOIS_COURTS = ['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
+let monthPickerYear = null;
+
+function closeMonthPicker(){
+  const pop = document.getElementById('month-picker-popover');
+  if(pop) pop.style.display = 'none';
+  document.removeEventListener('click', onDocClickCloseMonthPicker, true);
+}
+function onDocClickCloseMonthPicker(e){
+  const wrap = document.querySelector('.month-title-wrap');
+  if(wrap && !wrap.contains(e.target)) closeMonthPicker();
+}
+function renderMonthPicker(){
+  const pop = document.getElementById('month-picker-popover');
+  if(!pop) return;
+  pop.innerHTML = `
+    <div class="month-picker-year-nav">
+      <button type="button" id="mp-prev-year">‹</button>
+      <span class="month-picker-year-label">${monthPickerYear}</span>
+      <button type="button" id="mp-next-year">›</button>
+    </div>
+    <div class="month-picker-grid">
+      ${MOIS_COURTS.map((m,i)=>{
+        const isCurrent = monthPickerYear===cursor.getFullYear() && i===cursor.getMonth();
+        return `<button type="button" class="${isCurrent?'current':''}" data-month="${i}">${m}</button>`;
+      }).join('')}
+    </div>`;
+  pop.querySelector('#mp-prev-year').addEventListener('click', e=>{ e.stopPropagation(); monthPickerYear--; renderMonthPicker(); });
+  pop.querySelector('#mp-next-year').addEventListener('click', e=>{ e.stopPropagation(); monthPickerYear++; renderMonthPicker(); });
+  pop.querySelectorAll('[data-month]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      cursor = new Date(monthPickerYear, Number(btn.getAttribute('data-month')), 1);
+      closeMonthPicker();
+      render();
+    });
+  });
+}
+function openMonthPicker(){
+  monthPickerYear = cursor.getFullYear();
+  renderMonthPicker();
+  document.getElementById('month-picker-popover').style.display = 'block';
+  setTimeout(()=> document.addEventListener('click', onDocClickCloseMonthPicker, true), 0);
+}
+
 function render(){
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
   document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
-  document.getElementById('month-quick-nav').value = `${cursor.getFullYear()}-${pad(cursor.getMonth()+1)}`;
   document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('next-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('today-btn').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('print-week-btn').style.display = currentView==='cal' ? '' : 'none';
+  closeMonthPicker();
   let html;
   if(currentView==='cal') html = renderCalendar();
   else if(currentView==='agenda') html = renderAgenda();
@@ -3548,12 +3614,10 @@ document.addEventListener('keydown', (e)=>{
 document.getElementById('prev-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()-1); render(); });
 document.getElementById('next-month').addEventListener('click', ()=>{ cursor.setMonth(cursor.getMonth()+1); render(); });
 document.getElementById('today-btn').addEventListener('click', ()=>{ cursor = new Date(); cursor.setDate(1); render(); });
-document.getElementById('month-quick-nav').addEventListener('change', e=>{
-  const val = e.target.value; // "YYYY-MM"
-  if(!val) return;
-  const [y,m] = val.split('-').map(Number);
-  cursor = new Date(y, m-1, 1);
-  render();
+document.getElementById('month-title').addEventListener('click', e=>{
+  e.stopPropagation();
+  const pop = document.getElementById('month-picker-popover');
+  if(pop.style.display==='block') closeMonthPicker(); else openMonthPicker();
 });
 document.getElementById('print-week-btn').addEventListener('click', ()=> openPrintWeekModal());
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
