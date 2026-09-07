@@ -315,7 +315,7 @@
   .backup-block-text{font-size:13.5px;color:var(--ink-soft);max-width:560px;margin-bottom:10px;line-height:1.5;}
   .cat-list{border:1px solid var(--border);background:var(--card);box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
   .cat-row{
-    display:grid;grid-template-columns:1fr 140px 150px;gap:10px;align-items:center;
+    display:grid;grid-template-columns:26px 1fr 110px 104px;gap:10px;align-items:center;
     padding:10px 14px;border-bottom:1px solid var(--paper-line);
   }
   .cat-row:last-child{border-bottom:none;}
@@ -323,14 +323,42 @@
     font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;
     color:var(--ink-soft);background:transparent;border-bottom:1px solid var(--border);padding:8px 14px;
   }
+  .cat-check{display:flex;align-items:center;justify-content:center;}
+  .cat-check input{width:15px;height:15px;cursor:pointer;accent-color:var(--teal-dark);}
+  .cat-sort-btn{background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-transform:inherit;letter-spacing:inherit;}
+  .cat-sort-btn:hover{color:var(--teal-dark);}
+  .cat-sort-arrow{font-size:10px;opacity:0.75;}
   .cat-name{font-size:15px;}
   .cat-qty{font-family:'IBM Plex Mono',monospace;font-size:14.5px;}
   .qty-negative{color:var(--rust);font-weight:600;}
   .cat-unit{color:var(--ink-soft);font-size:13px;}
-  .cat-actions{display:flex;gap:12px;justify-content:flex-end;}
-  .cat-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-faint);padding:0;}
-  .cat-actions button:hover{color:var(--teal-dark);}
-  .cat-actions button[data-action="delete-cat"]:hover{color:var(--rust);}
+  .cat-actions{display:flex;gap:4px;justify-content:flex-end;}
+  .cat-icon-btn{
+    width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+    background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;
+    font-size:14px;color:var(--ink-faint);padding:0;line-height:1;
+  }
+  .cat-icon-btn:hover{color:var(--teal-dark);border-color:var(--border);background:var(--surface);}
+  .cat-icon-btn.danger:hover{color:var(--rust);}
+  .cat-row-editing{background:var(--surface);}
+  .cat-edit-fields{display:grid;grid-template-columns:1.4fr 0.7fr 0.9fr 1fr;gap:6px;grid-column:span 2;}
+  .cat-edit-fields input, .cat-edit-fields select{padding:5px 7px;font-size:13.5px;}
+  .cat-bulk-bar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:9px 14px;background:var(--teal-pale);border:1px solid var(--teal);border-bottom:none;
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);
+  }
+  .cat-bulk-bar .cat-bulk-count{font-weight:600;}
+  .cat-bulk-bar select{font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:5px 8px;}
+  .cat-bulk-bar button{font-family:'IBM Plex Mono',monospace;font-size:13px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);cursor:pointer;}
+  .cat-bulk-bar button:hover{border-color:var(--teal-dark);color:var(--teal-dark);}
+  .cat-bulk-bar button.danger:hover{border-color:var(--rust);color:var(--rust);}
+  @media (max-width:640px){
+    .cat-row{grid-template-columns:22px 1fr 90px;}
+    .cat-row .cat-actions{grid-column:1 / -1;justify-content:flex-start;}
+    .cat-edit-fields{grid-template-columns:1fr;grid-column:1/-1;}
+    .field-row-3{grid-template-columns:1fr;}
+  }
   .cat-add{margin-top:26px;max-width:640px;}
   .field-row-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
   .proto-classes-check{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;background:var(--surface);border:1px solid var(--border);padding:10px 12px;}
@@ -358,11 +386,6 @@
   .import-tag{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--amber);border:1px solid var(--amber);padding:1px 5px;margin-left:6px;}
   #cancel-import-btn{width:auto;flex:none;}
   #confirm-import-btn{width:auto;flex:none;margin-top:0;}
-  @media (max-width:640px){
-    .cat-row{grid-template-columns:1fr 90px;}
-    .cat-row .cat-actions{grid-column:1 / -1;justify-content:flex-start;}
-    .field-row-3{grid-template-columns:1fr;}
-  }
   #print-area{display:none;}
   @media print{
     body *{visibility:hidden;}
@@ -1493,12 +1516,28 @@ function renderCatalogue(){
   const catFilter = window._catCategoryFilter || 'toutes';
   const searchTerm = (window._catSearch || '').trim().toLowerCase();
   const lowStockOnly = !!window._catLowStockOnly;
+  const sort = window._catSort || { key:'nom', dir:'asc' };
+  const selected = window._catSelected || (window._catSelected = new Set());
+  const editingId = window._catEditingId || null;
+
   const items = [...catalogue]
     .filter(it=> catFilter==='toutes' || (it.categorie||'')===catFilter || (catFilter==='__sans__' && !it.categorie))
     .filter(it=> !searchTerm || (it.nom||'').toLowerCase().includes(searchTerm))
     .filter(it=> !lowStockOnly || (it.quantite!=null && it.quantite<LOW_STOCK_THRESHOLD))
-    .sort((a,b)=>(a.nom||'').localeCompare(b.nom||'','fr'));
+    .sort((a,b)=>{
+      let cmp;
+      if(sort.key==='quantite'){
+        const av = a.quantite!=null ? a.quantite : -Infinity, bv = b.quantite!=null ? b.quantite : -Infinity;
+        cmp = av - bv;
+      }else{
+        cmp = (a.nom||'').localeCompare(b.nom||'','fr');
+      }
+      return sort.dir==='asc' ? cmp : -cmp;
+    });
   window._catCurrentList = items;
+  // On ne garde en sélection que des articles encore visibles/existants.
+  const validIds = new Set(catalogue.map(it=>it.id));
+  [...selected].forEach(id=>{ if(!validIds.has(id)) selected.delete(id); });
 
   const groups = new Map();
   items.forEach(it=>{
@@ -1512,21 +1551,42 @@ function renderCatalogue(){
     return a.localeCompare(b,'fr');
   });
 
-  const rowHtml = it => `
+  const rowHtml = it => {
+    if(it.id === editingId) return renderCatEditRow(it, categories);
+    const isChecked = selected.has(it.id);
+    return `
     <div class="cat-row" data-id="${it.id}">
+      <label class="cat-check"><input type="checkbox" class="cat-select" data-id="${it.id}" ${isChecked?'checked':''}></label>
       <div class="cat-name">${it.nom ? escapeHtml(it.nom) : '(article sans nom — à corriger ou supprimer)'}</div>
       <div class="cat-qty"><span class="qty-view ${it.quantite!=null && it.quantite<0 ? 'qty-negative' : ''}">${it.quantite!=null && it.quantite!==''?it.quantite:'—'}</span> <span class="cat-unit">${escapeHtml(it.unite||'')}</span></div>
       <div class="cat-actions">
-        <button type="button" data-action="restock-cat" data-id="${it.id}">+ réapprovisionner</button>
-        <button type="button" data-action="edit-cat" data-id="${it.id}">corriger</button>
-        <button type="button" data-action="delete-cat" data-id="${it.id}">supprimer</button>
+        <button type="button" class="cat-icon-btn" data-action="restock-cat" data-id="${it.id}" title="Ajouter 1 au stock">+1</button>
+        <button type="button" class="cat-icon-btn" data-action="edit-cat" data-id="${it.id}" title="Modifier">✏️</button>
+        <button type="button" class="cat-icon-btn danger" data-action="delete-cat" data-id="${it.id}" title="Supprimer">🗑️</button>
       </div>
     </div>`;
+  };
 
   const rows = items.length ? groupKeys.map(key=>`
       <div class="cat-group-heading">${key==='__sans__' ? 'Sans catégorie' : escapeHtml(key)}</div>
       ${groups.get(key).map(rowHtml).join('')}
     `).join('') : `<div class="empty">${catalogue.length===0 ? 'Le catalogue est vide pour le moment. Ajoutez le premier article ci-dessous.' : 'Aucun article ne correspond à ces filtres.'}</div>`;
+
+  const sortArrow = key => sort.key===key ? `<span class="cat-sort-arrow">${sort.dir==='asc'?'▲':'▼'}</span>` : '';
+  const allVisibleIds = items.map(it=>it.id);
+  const allVisibleChecked = allVisibleIds.length>0 && allVisibleIds.every(id=>selected.has(id));
+
+  const bulkBar = selected.size>0 ? `
+      <div class="cat-bulk-bar">
+        <span class="cat-bulk-count">${selected.size} article${selected.size>1?'s':''} sélectionné${selected.size>1?'s':''}</span>
+        <select id="cat-bulk-category">
+          <option value="__noop__" selected>Changer la catégorie…</option>
+          <option value="">Aucune</option>
+          ${categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+        </select>
+        <button type="button" id="cat-bulk-delete-btn" class="danger">🗑️ Supprimer la sélection</button>
+        <button type="button" id="cat-bulk-clear-btn">Annuler la sélection</button>
+      </div>` : '';
 
   return `
     <div class="cat-wrap">
@@ -1546,10 +1606,12 @@ function renderCatalogue(){
         <button type="button" class="download-btn" id="download-cat-csv">⬇ Exporter le catalogue (${items.length})</button>
       </div>
 
+      ${bulkBar}
       <div class="cat-list">
         <div class="cat-row cat-head">
-          <div class="cat-name">Article</div>
-          <div class="cat-qty">Quantité</div>
+          <label class="cat-check"><input type="checkbox" id="cat-select-all" ${allVisibleChecked?'checked':''} title="Tout sélectionner"></label>
+          <div class="cat-name"><button type="button" class="cat-sort-btn" data-sort="nom">Article ${sortArrow('nom')}</button></div>
+          <div class="cat-qty"><button type="button" class="cat-sort-btn" data-sort="quantite">Quantité ${sortArrow('quantite')}</button></div>
           <div class="cat-actions"></div>
         </div>
         ${rows}
@@ -1598,6 +1660,29 @@ function renderCatalogue(){
           <button type="submit" class="submit-btn">Ajouter au catalogue</button>
         </form>
       </div>
+    </div>`;
+}
+
+function renderCatEditRow(it, categories){
+  return `
+    <div class="cat-row cat-row-editing" data-id="${it.id}">
+      <div></div>
+      <div class="cat-edit-fields">
+        <input type="text" id="edit-cat-nom" value="${escapeHtml(it.nom||'')}" placeholder="Nom du matériel">
+        <input type="number" id="edit-cat-qty" value="${it.quantite!=null?it.quantite:''}" placeholder="Quantité" step="1">
+        <input type="text" id="edit-cat-unit" value="${escapeHtml(it.unite||'')}" placeholder="Unité" list="cat-units-list">
+        <select id="edit-cat-category">
+          <option value="">Aucune</option>
+          ${categories.map(c=>`<option value="${escapeHtml(c)}" ${it.categorie===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+          <option value="__autre__" ${it.categorie && !categories.includes(it.categorie)?'selected':''}>Autre (préciser)</option>
+        </select>
+        <input type="text" id="edit-cat-category-autre" placeholder="Nouvelle catégorie" value="${it.categorie && !categories.includes(it.categorie)?escapeHtml(it.categorie):''}" style="display:${it.categorie && !categories.includes(it.categorie)?'block':'none'};">
+      </div>
+      <div class="cat-actions">
+        <button type="button" class="cat-icon-btn" data-action="save-cat" data-id="${it.id}" title="Enregistrer">✓</button>
+        <button type="button" class="cat-icon-btn danger" data-action="cancel-edit-cat" title="Annuler">✕</button>
+      </div>
+      <datalist id="cat-units-list">${UNITS.map(u=>`<option value="${u}">`).join('')}</datalist>
     </div>`;
 }
 
@@ -2006,15 +2091,8 @@ function attachContentHandlers(){
     el.addEventListener('click', async ()=>{
       const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
       if(!it) return;
-      const recu = prompt(`Quantité reçue à ajouter au stock de « ${it.nom} » (${it.unite||'unité'}) :\nStock actuel : ${it.quantite!=null?it.quantite:0}`, '');
-      if(recu===null) return;
-      const val = Number(recu.trim().replace(',','.'));
-      if(!recu.trim() || isNaN(val)){
-        alert("Indiquez un nombre valide.");
-        return;
-      }
       try{
-        await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) + val, updatedAt: Date.now() });
+        await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) + 1, updatedAt: Date.now() });
       }catch(err){
         alert("Le réapprovisionnement a échoué. Vérifiez la connexion et réessayez.");
       }
@@ -2022,23 +2100,47 @@ function attachContentHandlers(){
   });
 
   document.querySelectorAll('[data-action="edit-cat"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      window._catEditingId = el.getAttribute('data-id');
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="cancel-edit-cat"]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      window._catEditingId = null;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="save-cat"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
-      const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
+      const id = el.getAttribute('data-id');
+      const it = catalogue.find(x=>x.id===id);
       if(!it) return;
-      const nouvelleQte = prompt(`Corriger la quantité exacte pour « ${it.nom} », par exemple après un inventaire :`, it.quantite!=null?it.quantite:'');
-      if(nouvelleQte===null) return;
-      const nouvelleUnite = prompt(`Unité pour « ${it.nom} » (ex. boîtes, tubes, mL…) :`, it.unite||'');
-      if(nouvelleUnite===null) return;
-      const nouvelleCategorie = prompt(`Catégorie pour « ${it.nom} » (laissez vide pour aucune) :\nCatégories existantes : ${getCatalogueCategories().join(', ')}`, it.categorie||'');
-      if(nouvelleCategorie===null) return;
-      const val = nouvelleQte.trim();
+      const nom = document.getElementById('edit-cat-nom').value.trim();
+      const qtyRaw = document.getElementById('edit-cat-qty').value.trim();
+      const unite = document.getElementById('edit-cat-unit').value.trim();
+      const catSel = document.getElementById('edit-cat-category').value;
+      const categorie = catSel==='__autre__' ? document.getElementById('edit-cat-category-autre').value.trim() : catSel;
+      if(!nom){ alert('Indiquez le nom du matériel.'); return; }
       try{
-        await catalogueCol.doc(it.id).update({ quantite: val!==''?Number(val):null, unite: nouvelleUnite.trim(), categorie: nouvelleCategorie.trim()||null, updatedAt: Date.now() });
+        await catalogueCol.doc(id).update({
+          nom, quantite: qtyRaw!==''?Number(qtyRaw):null, unite, categorie: categorie||null, updatedAt: Date.now()
+        });
+        window._catEditingId = null;
       }catch(err){
         alert("La mise à jour a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   });
+
+  const editCatCategorySel = document.getElementById('edit-cat-category');
+  if(editCatCategorySel){
+    editCatCategorySel.addEventListener('change', e=>{
+      document.getElementById('edit-cat-category-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+    });
+  }
 
   document.querySelectorAll('[data-action="delete-cat"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -2048,6 +2150,73 @@ function attachContentHandlers(){
       }
     });
   });
+
+  document.querySelectorAll('.cat-sort-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const key = el.getAttribute('data-sort');
+      const current = window._catSort || { key:'nom', dir:'asc' };
+      window._catSort = current.key===key ? { key, dir: current.dir==='asc'?'desc':'asc' } : { key, dir:'asc' };
+      render();
+    });
+  });
+
+  const selectAllCat = document.getElementById('cat-select-all');
+  if(selectAllCat){
+    selectAllCat.addEventListener('change', e=>{
+      const selected = window._catSelected || (window._catSelected = new Set());
+      (window._catCurrentList||[]).forEach(it=>{
+        if(e.target.checked) selected.add(it.id); else selected.delete(it.id);
+      });
+      render();
+    });
+  }
+  document.querySelectorAll('.cat-select').forEach(el=>{
+    el.addEventListener('change', e=>{
+      const selected = window._catSelected || (window._catSelected = new Set());
+      const id = el.getAttribute('data-id');
+      if(e.target.checked) selected.add(id); else selected.delete(id);
+      render();
+    });
+  });
+  const bulkClearBtn = document.getElementById('cat-bulk-clear-btn');
+  if(bulkClearBtn){
+    bulkClearBtn.addEventListener('click', ()=>{
+      if(window._catSelected) window._catSelected.clear();
+      render();
+    });
+  }
+  const bulkDeleteBtn = document.getElementById('cat-bulk-delete-btn');
+  if(bulkDeleteBtn){
+    bulkDeleteBtn.addEventListener('click', async ()=>{
+      const selected = window._catSelected || new Set();
+      if(!selected.size) return;
+      if(!confirm(`Mettre ces ${selected.size} article(s) à la corbeille ? Vous pourrez les restaurer, ou ils seront supprimés définitivement après 30 jours.`)) return;
+      const toDelete = catalogue.filter(it=>selected.has(it.id));
+      for(const it of toDelete) await softDeleteCatalogueItem(it);
+      selected.clear();
+      render();
+    });
+  }
+  const bulkCategorySel = document.getElementById('cat-bulk-category');
+  if(bulkCategorySel){
+    bulkCategorySel.addEventListener('change', async e=>{
+      if(e.target.value==='__noop__') return;
+      const selected = window._catSelected || new Set();
+      if(!selected.size) return;
+      const categorie = e.target.value || null;
+      try{
+        const batch = db.batch();
+        catalogue.filter(it=>selected.has(it.id)).forEach(it=>{
+          batch.update(catalogueCol.doc(it.id), { categorie, updatedAt: Date.now() });
+        });
+        await batch.commit();
+        selected.clear();
+        render();
+      }catch(err){
+        alert("Le changement de catégorie a échoué. Vérifiez la connexion et réessayez.");
+      }
+    });
+  }
 
   const importTextarea = document.getElementById('import-text');
   if(importTextarea){
