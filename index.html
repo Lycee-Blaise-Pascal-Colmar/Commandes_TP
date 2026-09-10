@@ -402,6 +402,19 @@
     .field-row-3{grid-template-columns:1fr;}
   }
   .cat-add{margin-top:26px;max-width:640px;}
+  .tetris-wrap{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:18px;padding:10px 0;}
+  .tetris-frame{width:100%;max-width:460px;height:min(78vh,720px);border:none;border-radius:10px;background:#0f0f1a;box-shadow:0 8px 24px rgba(30,43,36,0.18);}
+  .tetris-leaderboard-panel{
+    width:220px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;
+  }
+  .tetris-lb-title{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;margin-bottom:10px;color:var(--teal-dark);}
+  .tetris-lb-empty{font-size:13px;color:var(--ink-soft);line-height:1.5;}
+  .tetris-lb-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;}
+  .tetris-lb-list li{display:flex;align-items:center;gap:8px;font-size:13.5px;}
+  .tetris-lb-rank{width:22px;text-align:center;font-weight:600;color:var(--ink-soft);}
+  .tetris-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tetris-lb-score{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  @media (max-width:700px){ .tetris-leaderboard-panel{width:100%;max-width:460px;} }
   .field-row-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
   .proto-classes-check{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;background:var(--surface);border:1px solid var(--border);padding:10px 12px;}
   .proto-check{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--ink);font-weight:400;text-transform:none;letter-spacing:normal;margin:0;}
@@ -522,6 +535,7 @@
       <button id="view-catalogue">Catalogue</button>
       <button id="view-protocoles">Protocoles</button>
       <button id="view-corbeille">🗑 Corbeille</button>
+      <button id="view-tetris">🎮 Tetris</button>
     </div>
   </div>
 
@@ -557,8 +571,10 @@ const auth = firebase.auth();
 const ordersCol = db.collection('commandes');
 const catalogueCol = db.collection('catalogue');
 const protocolesCol = db.collection('protocoles');
+const tetrisScoresCol = db.collection('tetrisScores');
 
 let protocoles = [];
+let tetrisScores = [];
 
 let orders = [];
 let catalogue = [];
@@ -574,8 +590,12 @@ let prepareCursor = mondayOf(todayIso()); // lundi de la semaine affichée dans 
 let unsubscribeOrders = null;
 let unsubscribeCatalogue = null;
 let unsubscribeProtocoles = null;
+let unsubscribeTetrisScores = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
+// --- Jeu Tetris embarqué (onglet Détente) -----------------------------
+const TETRIS_HTML = "<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">\n<title>Tetris</title>\n<style>\n  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }\n  html, body {\n    margin: 0; padding: 0; height: 100%; overflow: hidden;\n    background: #0f0f1a;\n    font-family: 'Segoe UI', Arial, sans-serif;\n    touch-action: none;\n  }\n  #app {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    height: 100%;\n    padding: 8px;\n    color: #eee;\n  }\n  #topbar {\n    width: 100%;\n    max-width: 420px;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 6px;\n  }\n  #topbar .stat { text-align: center; }\n  #topbar .stat .label { font-size: 11px; color: #888; letter-spacing: 1px; }\n  #topbar .stat .value { font-size: 20px; font-weight: bold; color: #fff; }\n  #main {\n    display: flex;\n    gap: 10px;\n    flex: 1;\n    min-height: 0;\n    width: 100%;\n    max-width: 420px;\n    justify-content: center;\n  }\n  #boardWrap {\n    position: relative;\n    height: 100%;\n    display: flex;\n    align-items: center;\n  }\n  canvas#board {\n    background: #1a1a2e;\n    border: 2px solid #33334d;\n    border-radius: 4px;\n    display: block;\n    max-height: 100%;\n  }\n  #side {\n    display: flex;\n    flex-direction: column;\n    gap: 10px;\n    width: 80px;\n  }\n  #side .panel {\n    background: #1a1a2e;\n    border: 2px solid #33334d;\n    border-radius: 6px;\n    padding: 6px;\n    text-align: center;\n  }\n  #side .panel .label { font-size: 10px; color: #888; margin-bottom: 4px; }\n  canvas#next { display: block; margin: 0 auto; }\n  #overlay {\n    position: fixed; inset: 0;\n    background: rgba(10,10,20,0.92);\n    display: none;\n    align-items: center;\n    justify-content: center;\n    flex-direction: column;\n    z-index: 10;\n    color: #fff;\n    text-align: center;\n    padding: 20px;\n  }\n  #overlay h1 { font-size: 28px; margin-bottom: 4px; }\n  #overlay p { color: #aaa; margin: 4px 0 16px; }\n  .btn {\n    background: linear-gradient(#4c4cff, #3333cc);\n    color: white; border: none; border-radius: 8px;\n    padding: 12px 28px; font-size: 16px; font-weight: bold;\n    box-shadow: 0 3px 0 #22228a;\n  }\n  .btn:active { transform: translateY(2px); box-shadow: none; }\n  #controls {\n    width: 100%;\n    max-width: 420px;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-top: 8px;\n    gap: 8px;\n  }\n  .pad {\n    display: flex;\n    gap: 8px;\n  }\n  .ctrlBtn {\n    width: 58px; height: 58px;\n    border-radius: 50%;\n    background: #2a2a44;\n    border: 2px solid #44446a;\n    color: #fff;\n    font-size: 22px;\n    display: flex; align-items: center; justify-content: center;\n  }\n  .ctrlBtn:active { background: #3d3d66; }\n  #rotateBtn { background: #33335c; }\n  #hardDropBtn {\n    width: 70px; height: 58px;\n    border-radius: 12px;\n    background: #5c2a4a;\n    border: 2px solid #7a3a63;\n    color: #fff;\n    font-size: 12px;\n    font-weight: bold;\n  }\n  #pauseBtn, #muteBtn {\n    background: none; border: none; color: #888; font-size: 20px;\n  }\n  #scoreSaveRow {\n    display: flex; gap: 8px; margin-bottom: 14px; align-items: center;\n  }\n  #nameInput {\n    font-size: 15px; padding: 8px 10px; border-radius: 6px;\n    border: 2px solid #44446a; background: #1a1a2e; color: #fff; width: 130px;\n  }\n  #nameInput::placeholder { color: #777; }\n  .btn.small {\n    padding: 8px 14px; font-size: 13px; box-shadow: 0 2px 0 #22228a;\n  }\n  .btn.small:disabled { opacity: 0.6; }\n</style>\n</head>\n<body>\n<div id=\"app\">\n  <div id=\"topbar\">\n    <div class=\"stat\"><div class=\"label\">SCORE</div><div class=\"value\" id=\"scoreVal\">0</div></div>\n    <div class=\"stat\"><div class=\"label\">NIVEAU</div><div class=\"value\" id=\"levelVal\">1</div></div>\n    <div class=\"stat\"><div class=\"label\">LIGNES</div><div class=\"value\" id=\"linesVal\">0</div></div>\n    <button id=\"muteBtn\">\ud83d\udd0a</button>\n    <button id=\"pauseBtn\">\u23f8</button>\n  </div>\n  <div id=\"main\">\n    <div id=\"boardWrap\">\n      <canvas id=\"board\"></canvas>\n    </div>\n    <div id=\"side\">\n      <div class=\"panel\">\n        <div class=\"label\">SUIVANT</div>\n        <canvas id=\"next\" width=\"64\" height=\"64\"></canvas>\n      </div>\n    </div>\n  </div>\n  <div id=\"controls\">\n    <div class=\"pad\">\n      <button class=\"ctrlBtn\" id=\"leftBtn\">\u25c0</button>\n      <button class=\"ctrlBtn\" id=\"downBtn\">\u25bc</button>\n      <button class=\"ctrlBtn\" id=\"rightBtn\">\u25b6</button>\n    </div>\n    <button id=\"hardDropBtn\">CHUTE</button>\n    <button class=\"ctrlBtn\" id=\"rotateBtn\">\u27f3</button>\n  </div>\n</div>\n\n<div id=\"overlay\">\n  <h1 id=\"overlayTitle\">TETRIS</h1>\n  <p id=\"overlaySub\">Touchez pour commencer</p>\n  <div id=\"scoreSaveRow\" style=\"display:none;\">\n    <input type=\"text\" id=\"nameInput\" maxlength=\"24\" placeholder=\"Ton pr\u00e9nom\">\n    <button class=\"btn small\" id=\"saveScoreBtn\">Enregistrer le score</button>\n  </div>\n  <button class=\"btn\" id=\"startBtn\">JOUER</button>\n</div>\n\n<script>\n(function(){\n  \"use strict\";\n\n  const COLS = 10, ROWS = 20;\n  let CELL = 24;\n\n  const COLORS = {\n    I: '#00e5ff', O: '#ffd400', T: '#b967ff',\n    S: '#4dff88', Z: '#ff4d6d', J: '#4d7dff', L: '#ff9d4d'\n  };\n\n  const SHAPES = {\n    I: [[0,1],[1,1],[2,1],[3,1]],\n    O: [[1,0],[2,0],[1,1],[2,1]],\n    T: [[1,0],[0,1],[1,1],[2,1]],\n    S: [[1,0],[2,0],[0,1],[1,1]],\n    Z: [[0,0],[1,0],[1,1],[2,1]],\n    J: [[0,0],[0,1],[1,1],[2,1]],\n    L: [[2,0],[0,1],[1,1],[2,1]]\n  };\n  const PIECE_KEYS = Object.keys(SHAPES);\n\n  const boardCanvas = document.getElementById('board');\n  const ctx = boardCanvas.getContext('2d');\n  const nextCanvas = document.getElementById('next');\n  const nextCtx = nextCanvas.getContext('2d');\n\n  const scoreEl = document.getElementById('scoreVal');\n  const levelEl = document.getElementById('levelVal');\n  const linesEl = document.getElementById('linesVal');\n  const overlay = document.getElementById('overlay');\n  const overlayTitle = document.getElementById('overlayTitle');\n  const overlaySub = document.getElementById('overlaySub');\n  const startBtn = document.getElementById('startBtn');\n  const pauseBtn = document.getElementById('pauseBtn');\n  const muteBtn = document.getElementById('muteBtn');\n  const scoreSaveRow = document.getElementById('scoreSaveRow');\n  const nameInput = document.getElementById('nameInput');\n  const saveScoreBtn = document.getElementById('saveScoreBtn');\n  let lastPlayerName = '';\n\n  // ---- Musique (th\u00e8me \"Korobeiniki\", m\u00e9lodie folklorique russe du domaine public,\n  // popularis\u00e9e par Tetris) \u2014 synth\u00e9tis\u00e9e en chiptune via Web Audio API ----\n  const NOTE_FREQ = {\n    A4:440.00, B4:493.88, C5:523.25, D5:587.33, E5:659.25,\n    F5:698.46, G5:783.99, A5:880.00\n  };\n  // [note, dur\u00e9e en ms \u00e0 tempo de base], null = silence\n  const MELODY = [\n    ['E5',500],['B4',250],['C5',250],['D5',500],['C5',250],['B4',250],\n    ['A4',500],['A4',250],['C5',250],['E5',500],['D5',250],['C5',250],\n    ['B4',750],['C5',250],['D5',500],['E5',500],\n    ['C5',500],['A4',500],['A4',500],[null,500],\n    ['D5',750],['F5',250],['A5',500],['G5',250],['F5',250],\n    ['E5',750],['C5',250],['E5',500],['D5',250],['C5',250],\n    ['B4',500],['B4',250],['C5',250],['D5',500],\n    ['E5',500],\n    ['C5',500],\n    ['A4',500],\n    ['A4',500],[null,500]\n  ];\n  const TEMPO_SCALE = 0.46; // ajuste la vitesse du th\u00e8me\n  let audioCtx = null, musicGain = null;\n  let musicOn = true;\n  let melodyIndex = 0;\n  let musicTimeoutId = null;\n\n  function initAudio(){\n    if (audioCtx) return;\n    try {\n      audioCtx = new (window.AudioContext || window.webkitAudioContext)();\n      musicGain = audioCtx.createGain();\n      musicGain.gain.value = 0.12;\n      musicGain.connect(audioCtx.destination);\n    } catch(e){ audioCtx = null; }\n  }\n\n  function playTone(freq, durationMs){\n    if (!audioCtx || !musicOn) return;\n    const osc = audioCtx.createOscillator();\n    const noteGain = audioCtx.createGain();\n    osc.type = 'square';\n    osc.frequency.value = freq;\n    const t0 = audioCtx.currentTime;\n    const dur = durationMs / 1000;\n    noteGain.gain.setValueAtTime(0.0001, t0);\n    noteGain.gain.exponentialRampToValueAtTime(0.8, t0 + 0.02);\n    noteGain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.95);\n    osc.connect(noteGain);\n    noteGain.connect(musicGain);\n    osc.start(t0);\n    osc.stop(t0 + dur);\n  }\n\n  function scheduleNextNote(){\n    if (!running || paused){\n      musicTimeoutId = setTimeout(scheduleNextNote, 200);\n      return;\n    }\n    const [note, baseDur] = MELODY[melodyIndex];\n    const dur = baseDur * TEMPO_SCALE;\n    if (note && musicOn) playTone(NOTE_FREQ[note], dur * 0.9);\n    melodyIndex = (melodyIndex + 1) % MELODY.length;\n    musicTimeoutId = setTimeout(scheduleNextNote, dur);\n  }\n\n  function startMusic(){\n    initAudio();\n    if (!audioCtx) return;\n    if (audioCtx.state === 'suspended') audioCtx.resume();\n    if (!musicTimeoutId) scheduleNextNote();\n  }\n\n  muteBtn.addEventListener('click', () => {\n    musicOn = !musicOn;\n    muteBtn.textContent = musicOn ? '\ud83d\udd0a' : '\ud83d\udd07';\n    if (musicOn && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();\n  });\n\n  let grid, current, currentColor, currentKey, rotation, nextKey;\n  let score, level, linesCleared;\n  let dropInterval, lastDrop, running, paused, gameOver;\n  let rafId;\n\n  function resizeCanvas(){\n    const wrap = document.getElementById('boardWrap');\n    const maxH = wrap.clientHeight || window.innerHeight * 0.6;\n    const maxW = window.innerWidth - 100;\n    CELL = Math.floor(Math.min(maxH / ROWS, maxW / COLS));\n    CELL = Math.max(14, Math.min(CELL, 30));\n    boardCanvas.width = COLS * CELL;\n    boardCanvas.height = ROWS * CELL;\n    draw();\n  }\n\n  function newGrid(){\n    const g = [];\n    for (let r = 0; r < ROWS; r++) g.push(new Array(COLS).fill(null));\n    return g;\n  }\n\n  function randomKey(){\n    return PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)];\n  }\n\n  function rotateCells(cells, times){\n    let result = cells;\n    for (let t = 0; t < times; t++){\n      // rotate around bounding box center approx (using 4x4 grid logic simplified)\n      result = result.map(([x,y]) => [y, 3 - x]);\n    }\n    return result;\n  }\n\n  function spawnPiece(){\n    currentKey = nextKey || randomKey();\n    nextKey = randomKey();\n    rotation = 0;\n    currentColor = COLORS[currentKey];\n    current = SHAPES[currentKey].map(c => c.slice());\n    current = current.map(([x,y]) => [x + 3, y]);\n    if (collides(current)) {\n      endGame();\n    }\n    drawNext();\n  }\n\n  function collides(cells, dx=0, dy=0){\n    for (const [x,y] of cells){\n      const nx = x + dx, ny = y + dy;\n      if (nx < 0 || nx >= COLS || ny >= ROWS) return true;\n      if (ny >= 0 && grid[ny][nx]) return true;\n    }\n    return false;\n  }\n\n  function tryMove(dx, dy){\n    if (!collides(current, dx, dy)){\n      current = current.map(([x,y]) => [x+dx, y+dy]);\n      return true;\n    }\n    return false;\n  }\n\n  function tryRotate(){\n    if (currentKey === 'O') return;\n    const cx = 1, cy = 1; // approximate pivot for 3-wide shapes\n    let pivotX, pivotY;\n    if (currentKey === 'I'){\n      pivotX = current[1][0]; pivotY = current[1][1];\n    } else {\n      pivotX = current[1][0]; pivotY = current[1][1];\n    }\n    const rotated = current.map(([x,y]) => {\n      const relX = x - pivotX, relY = y - pivotY;\n      return [pivotX - relY, pivotY + relX];\n    });\n    const kicks = [0, -1, 1, -2, 2];\n    for (const k of kicks){\n      if (!collides(rotated, k, 0)){\n        current = rotated.map(([x,y]) => [x+k, y]);\n        return;\n      }\n    }\n  }\n\n  function lockPiece(){\n    for (const [x,y] of current){\n      if (y >= 0) grid[y][x] = currentColor;\n    }\n    clearLines();\n    spawnPiece();\n  }\n\n  function clearLines(){\n    let cleared = 0;\n    for (let r = ROWS - 1; r >= 0; r--){\n      if (grid[r].every(cell => cell)){\n        grid.splice(r, 1);\n        grid.unshift(new Array(COLS).fill(null));\n        cleared++;\n        r++;\n      }\n    }\n    if (cleared > 0){\n      const points = [0, 100, 300, 500, 800][cleared] * level;\n      score += points;\n      linesCleared += cleared;\n      level = 1 + Math.floor(linesCleared / 10);\n      dropInterval = Math.max(100, 800 - (level - 1) * 60);\n      updateStats();\n    }\n  }\n\n  function hardDrop(){\n    let dist = 0;\n    while (tryMove(0, 1)) dist++;\n    score += dist * 2;\n    lockPiece();\n    updateStats();\n    draw();\n  }\n\n  function updateStats(){\n    scoreEl.textContent = score;\n    levelEl.textContent = level;\n    linesEl.textContent = linesCleared;\n  }\n\n  function draw(){\n    ctx.clearRect(0, 0, boardCanvas.width, boardCanvas.height);\n    // grid background lines\n    ctx.strokeStyle = 'rgba(255,255,255,0.04)';\n    for (let c = 0; c <= COLS; c++){\n      ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, ROWS*CELL); ctx.stroke();\n    }\n    for (let r = 0; r <= ROWS; r++){\n      ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(COLS*CELL, r*CELL); ctx.stroke();\n    }\n    if (!grid) return;\n    // locked cells\n    for (let r = 0; r < ROWS; r++){\n      for (let c = 0; c < COLS; c++){\n        if (grid[r][c]) drawCell(ctx, c, r, grid[r][c]);\n      }\n    }\n    // ghost piece\n    if (current){\n      let ghostY = 0;\n      while (!collides(current, 0, ghostY+1)) ghostY++;\n      ctx.globalAlpha = 0.25;\n      for (const [x,y] of current){\n        const gy = y + ghostY;\n        if (gy >= 0) drawCell(ctx, x, gy, currentColor);\n      }\n      ctx.globalAlpha = 1;\n      // current piece\n      for (const [x,y] of current){\n        if (y >= 0) drawCell(ctx, x, y, currentColor);\n      }\n    }\n  }\n\n  function drawCell(context, x, y, color){\n    const px = x * CELL, py = y * CELL;\n    context.fillStyle = color;\n    context.fillRect(px+1, py+1, CELL-2, CELL-2);\n    context.fillStyle = 'rgba(255,255,255,0.25)';\n    context.fillRect(px+1, py+1, CELL-2, 3);\n  }\n\n  function drawNext(){\n    nextCtx.clearRect(0,0,nextCanvas.width, nextCanvas.height);\n    if (!nextKey) return;\n    const cells = SHAPES[nextKey];\n    const size = 14;\n    const offX = nextKey === 'I' ? 4 : 8;\n    const offY = nextKey === 'I' ? 18 : 10;\n    nextCtx.fillStyle = COLORS[nextKey];\n    for (const [x,y] of cells){\n      nextCtx.fillRect(offX + x*size, offY + y*size, size-2, size-2);\n    }\n  }\n\n  function loop(ts){\n    if (!running || paused){ rafId = requestAnimationFrame(loop); return; }\n    if (!lastDrop) lastDrop = ts;\n    if (ts - lastDrop > dropInterval){\n      if (!tryMove(0,1)){\n        lockPiece();\n      }\n      lastDrop = ts;\n    }\n    draw();\n    rafId = requestAnimationFrame(loop);\n  }\n\n  function endGame(){\n    running = false;\n    gameOver = true;\n    melodyIndex = 0;\n    overlayTitle.textContent = 'GAME OVER';\n    overlaySub.textContent = 'Score: ' + score;\n    startBtn.textContent = 'REJOUER';\n    scoreSaveRow.style.display = score > 0 ? 'flex' : 'none';\n    nameInput.value = lastPlayerName;\n    saveScoreBtn.textContent = 'Enregistrer le score';\n    saveScoreBtn.disabled = false;\n    overlay.style.display = 'flex';\n  }\n\n  function saveScore(){\n    const name = nameInput.value.trim();\n    if (!name || saveScoreBtn.disabled) return;\n    lastPlayerName = name;\n    try {\n      window.parent.postMessage({ type: 'tetris-score', name: name, score: score }, '*');\n    } catch(e){}\n    saveScoreBtn.textContent = '\u2713 Enregistr\u00e9';\n    saveScoreBtn.disabled = true;\n  }\n  saveScoreBtn.addEventListener('click', saveScore);\n  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveScore(); });\n\n  function startGame(){\n    grid = newGrid();\n    score = 0; level = 1; linesCleared = 0;\n    dropInterval = 800; lastDrop = 0;\n    nextKey = randomKey();\n    updateStats();\n    spawnPiece();\n    running = true; paused = false; gameOver = false;\n    scoreSaveRow.style.display = 'none';\n    overlay.style.display = 'none';\n    resizeCanvas();\n    if (!rafId) rafId = requestAnimationFrame(loop);\n    startMusic();\n  }\n\n  function togglePause(){\n    if (!running) return;\n    paused = !paused;\n    pauseBtn.textContent = paused ? '\u25b6' : '\u23f8';\n  }\n\n  // Controls\n  startBtn.addEventListener('click', startGame);\n  pauseBtn.addEventListener('click', togglePause);\n\n  function bindHold(id, action, repeatMs){\n    const el = document.getElementById(id);\n    let interval = null;\n    const fire = (e) => {\n      e.preventDefault();\n      if (!running || paused) return;\n      action();\n      draw();\n    };\n    el.addEventListener('touchstart', (e) => {\n      fire(e);\n      interval = setInterval(() => fire(e), repeatMs);\n    }, {passive:false});\n    el.addEventListener('mousedown', (e) => {\n      fire(e);\n      interval = setInterval(() => fire(e), repeatMs);\n    });\n    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };\n    el.addEventListener('touchend', stop);\n    el.addEventListener('touchcancel', stop);\n    el.addEventListener('mouseup', stop);\n    el.addEventListener('mouseleave', stop);\n  }\n\n  bindHold('leftBtn', () => tryMove(-1,0), 130);\n  bindHold('rightBtn', () => tryMove(1,0), 130);\n  bindHold('downBtn', () => { if(tryMove(0,1)) score += 1; updateStats(); }, 60);\n\n  document.getElementById('rotateBtn').addEventListener('touchstart', (e) => {\n    e.preventDefault();\n    if (running && !paused) { tryRotate(); draw(); }\n  }, {passive:false});\n  document.getElementById('rotateBtn').addEventListener('click', () => {\n    if (running && !paused) { tryRotate(); draw(); }\n  });\n\n  document.getElementById('hardDropBtn').addEventListener('touchstart', (e) => {\n    e.preventDefault();\n    if (running && !paused) hardDrop();\n  }, {passive:false});\n  document.getElementById('hardDropBtn').addEventListener('click', () => {\n    if (running && !paused) hardDrop();\n  });\n\n  // Keyboard for desktop testing\n  window.addEventListener('keydown', (e) => {\n    if (!running || paused) return;\n    switch(e.key){\n      case 'ArrowLeft': tryMove(-1,0); draw(); break;\n      case 'ArrowRight': tryMove(1,0); draw(); break;\n      case 'ArrowDown': tryMove(0,1); draw(); break;\n      case 'ArrowUp': tryRotate(); draw(); break;\n      case ' ': hardDrop(); break;\n    }\n  });\n\n  window.addEventListener('resize', resizeCanvas);\n  resizeCanvas();\n  overlay.style.display = 'flex';\n})();\n<\/script>\n</body>\n</html>\n";
+
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
 const LOW_STOCK_THRESHOLD = 10;
 const CLASSES = ['1ST2S BPH','1STL Bio-bio','1STL Biotech','Biozone','Enseignement scientifique','Première SVT','Seconde Biotech','Seconde SVT','Terminale SVT','TST2S BPH','TSTL Biotech'];
@@ -725,6 +745,7 @@ function unsubscribeAll(){
   if(unsubscribeOrders){ unsubscribeOrders(); unsubscribeOrders = null; }
   if(unsubscribeCatalogue){ unsubscribeCatalogue(); unsubscribeCatalogue = null; }
   if(unsubscribeProtocoles){ unsubscribeProtocoles(); unsubscribeProtocoles = null; }
+  if(unsubscribeTetrisScores){ unsubscribeTetrisScores(); unsubscribeTetrisScores = null; }
 }
 
 function connectRealtime(){
@@ -767,6 +788,13 @@ function connectRealtime(){
       purgeExpiredTrash();
     },
     err=>{ console.error('Erreur protocoles:', err); }
+  );
+  unsubscribeTetrisScores = tetrisScoresCol.orderBy('score','desc').limit(10).onSnapshot(
+    snap=>{
+      tetrisScores = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      if(currentView==='tetris') updateTetrisLeaderboardDOM();
+    },
+    err=>{ console.error('Erreur scores Tetris (la collection tetrisScores est-elle autorisée dans les règles Firestore ?):', err); }
   );
 }
 
@@ -1204,6 +1232,32 @@ function openMonthPicker(){
   setTimeout(()=> document.addEventListener('click', onDocClickCloseMonthPicker, true), 0);
 }
 
+function renderTetrisLeaderboardHtml(){
+  if(!tetrisScores.length) return '<div class="tetris-lb-empty">Aucun score enregistré pour l\'instant — sois le premier·ère !</div>';
+  const medals = ['🥇','🥈','🥉'];
+  return '<ol class="tetris-lb-list">' + tetrisScores.map((s,i)=>`
+    <li>
+      <span class="tetris-lb-rank">${medals[i]||(i+1)+'.'}</span>
+      <span class="tetris-lb-name">${escapeHtml(s.nom||'—')}</span>
+      <span class="tetris-lb-score">${s.score}</span>
+    </li>`).join('') + '</ol>';
+}
+function updateTetrisLeaderboardDOM(){
+  const el = document.getElementById('tetris-leaderboard');
+  if(el) el.innerHTML = renderTetrisLeaderboardHtml();
+}
+function renderTetris(){
+  const safeSrcdoc = TETRIS_HTML.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  return `
+    <div class="tetris-wrap">
+      <iframe class="tetris-frame" srcdoc="${safeSrcdoc}" title="Tetris"></iframe>
+      <div class="tetris-leaderboard-panel">
+        <div class="tetris-lb-title">🏆 Meilleurs scores</div>
+        <div id="tetris-leaderboard">${renderTetrisLeaderboardHtml()}</div>
+      </div>
+    </div>`;
+}
+
 function render(){
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
   document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
@@ -1212,6 +1266,14 @@ function render(){
   document.getElementById('today-btn').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('print-week-btn').style.display = currentView==='cal' ? '' : 'none';
   closeMonthPicker();
+  if(currentView==='tetris'){
+    // On évite de reconstruire l'iframe à chaque render() (déclenché aussi par les mises à jour
+    // Firestore en arrière-plan) pour ne pas réinitialiser une partie en cours.
+    if(!document.querySelector('#content > iframe.tetris-frame')){
+      document.getElementById('content').innerHTML = renderTetris();
+    }
+    return;
+  }
   let html;
   if(currentView==='cal') html = renderCalendar();
   else if(currentView==='agenda') html = renderAgenda();
@@ -3628,6 +3690,17 @@ document.getElementById('view-recherche').addEventListener('click', ()=>{ curren
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
 document.getElementById('view-corbeille').addEventListener('click', ()=>{ currentView='corbeille'; setActiveView(); render(); });
+document.getElementById('view-tetris').addEventListener('click', ()=>{ currentView='tetris'; setActiveView(); render(); });
+
+window.addEventListener('message', e=>{
+  if(!e.data || e.data.type!=='tetris-score') return;
+  const nom = String(e.data.name||'').trim().slice(0,24);
+  const score = Number(e.data.score)||0;
+  if(!nom || score<=0) return;
+  tetrisScoresCol.add({ nom, score, date: Date.now() }).catch(err=>{
+    console.error('Erreur enregistrement score Tetris:', err);
+  });
+});
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
   document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
@@ -3637,6 +3710,7 @@ function setActiveView(){
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
   document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
+  document.getElementById('view-tetris').classList.toggle('active', currentView==='tetris');
 }
 
 // --- Authentification ---------------------------------------------------
