@@ -2589,6 +2589,7 @@ async function importCatalogueRows(rows){
 /* ---------- Day modal (add / view orders for a given day) ---------- */
 let modalItemRowCount = 0;
 let dayModalState = null; // { iso, showForm } — permet la navigation clavier ← → entre jours
+let modalDirty = false; // true si le formulaire de commande (dépôt/modification) contient une saisie non enregistrée
 
 function openDayModal(iso, showForm){
   const root = document.getElementById('modal-root');
@@ -2693,6 +2694,13 @@ function openDayModal(iso, showForm){
   modalItemRowCount = 0;
   addModalItemRow(); addModalItemRow();
   setupMatImportUI('items-container', 'f');
+
+  modalDirty = false;
+  if(willShowForm){
+    document.getElementById('order-form').addEventListener('input', ()=>{ modalDirty = true; });
+    document.getElementById('order-form').addEventListener('change', ()=>{ modalDirty = true; });
+    document.getElementById('f-prof').focus();
+  }
 
   document.getElementById('close-modal').addEventListener('click', closeModal);
   document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
@@ -3204,7 +3212,16 @@ function openPrintWeekModal(){
   });
 }
 
-function closeModal(){ dayModalState = null; document.getElementById('modal-root').innerHTML = ''; }
+function closeModal(){
+  const modalRoot = document.getElementById('modal-root');
+  const sensitive = modalRoot && modalRoot.querySelector('#order-modal-box, #edit-modal-box');
+  if(sensitive && modalDirty){
+    if(!confirm('Fermer sans enregistrer ? Les informations saisies seront perdues.')) return;
+  }
+  modalDirty = false;
+  dayModalState = null;
+  modalRoot.innerHTML = '';
+}
 
 function addYears(iso, n){
   const d = new Date(iso+'T00:00:00');
@@ -3393,6 +3410,11 @@ function openEditOrderModal(order){
   bindRteToolbars(document.getElementById('edit-modal-box'));
   bindQuickAddProto('e', 'e-classe', 'e-protocole');
 
+  modalDirty = false;
+  document.getElementById('edit-order-form').addEventListener('input', ()=>{ modalDirty = true; });
+  document.getElementById('edit-order-form').addEventListener('change', ()=>{ modalDirty = true; });
+  document.getElementById('e-date').focus();
+
   document.getElementById('edit-order-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const errEl = document.getElementById('edit-form-err');
@@ -3436,6 +3458,7 @@ function openEditOrderModal(order){
         protocoleTitre: protocole ? protocole.titre : null,
         protocoleLien: protocole ? protocole.lien : null
       });
+      modalDirty = false;
       closeModal();
     }catch(err){
       console.error(err);
