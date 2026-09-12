@@ -278,6 +278,13 @@
   .cat-toggle-all:hover{background:var(--teal-pale);color:var(--teal-dark);}
   .slip{position:relative;background:var(--card);color:var(--ink);border:1px solid var(--border);margin-bottom:14px;padding:14px 16px 12px;box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
   .slip-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
+  .slip-titre{font-family:'IBM Plex Sans',sans-serif;font-size:15.5px;font-weight:700;margin-bottom:2px;}
+  .titre-suggest{margin-top:8px;padding:9px 11px;background:var(--teal-pale);border:1px solid var(--teal);border-radius:4px;font-size:13px;line-height:1.5;color:var(--ink);}
+  .titre-suggest button{
+    margin-left:6px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--teal-dark);color:#fff;
+    border:none;padding:5px 10px;border-radius:3px;cursor:pointer;
+  }
+  .titre-suggest button:hover{filter:brightness(1.08);}
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;}
   .slip-meta{font-size:14px;color:var(--ink-soft);margin-top:2px;}
   .slip-meta b{color:var(--ink);font-weight:500;}
@@ -888,7 +895,7 @@ async function duplicateOrderToDate(order, newIso){
   try{
     await createOrderAndDeductStock({
       prof: order.prof, date: newIso, classe: order.classe||'', horaire: order.horaire||'',
-      salle: order.salle||'', items: order.items||[], notes: order.notes||'',
+      salle: order.salle||'', items: order.items||[], notes: order.notes||'', titre: order.titre||'',
       protocoleTitre: order.protocoleTitre||null, protocoleLien: order.protocoleLien||null
     });
   }catch(err){
@@ -1382,7 +1389,7 @@ function renderSearchResults(q){
   }
   const matches = orders.filter(o=>{
     const haystack = [
-      o.prof, o.classe, o.salle, o.notes, o.protocoleTitre,
+      o.titre, o.prof, o.classe, o.salle, o.notes, o.protocoleTitre,
       ...(o.items||[]).map(it=>it.name)
     ].filter(Boolean).join(' ').toLowerCase();
     return haystack.includes(query);
@@ -1405,7 +1412,7 @@ function renderRecherche(){
   const q = window._searchQuery || '';
   return `
     <div class="agenda-filters">
-      <input type="text" id="search-input" placeholder="Rechercher un enseignant, une classe, une salle, un article, une note…" value="${escapeHtml(q)}" style="flex:1;min-width:240px;padding:9px 10px;border:1px solid var(--border);border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;background:var(--card);color:var(--ink);">
+      <input type="text" id="search-input" placeholder="Rechercher un titre de TP, un enseignant, une classe, une salle, un article, une note…" value="${escapeHtml(q)}" style="flex:1;min-width:240px;padding:9px 10px;border:1px solid var(--border);border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;background:var(--card);color:var(--ink);">
     </div>
     <div id="search-results">${renderSearchResults(q)}</div>`;
 }
@@ -1875,6 +1882,7 @@ function renderSlip(o){
     <div class="slip ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
       <div class="slip-head">
         <div>
+          ${o.titre?`<div class="slip-titre" style="color:${c.text};">${escapeHtml(o.titre)}</div>`:''}
           <div class="slip-date" style="color:${c.text};">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
           <div class="slip-meta"><b style="color:${c.text};">${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
@@ -2628,6 +2636,12 @@ function openDayModal(iso, showForm){
             <input type="text" id="f-prof-autre" placeholder="Nom de l'enseignant" style="display:none;margin-top:6px;">
           </div>
           <div class="field">
+            <label for="f-titre">Titre du TP (optionnel)</label>
+            <input type="text" id="f-titre" placeholder="Ex : Dissection cœur de porc" list="f-titre-list" maxlength="120">
+            <datalist id="f-titre-list">${Array.from(new Set(orders.map(o=>o.titre).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr')).map(t=>`<option value="${escapeHtml(t)}">`).join('')}</datalist>
+            <div id="f-titre-suggest" class="titre-suggest" style="display:none;"></div>
+          </div>
+          <div class="field">
             <label for="f-classe">Classe</label>
             <select id="f-classe">
               <option value="">Sélectionner une classe (facultatif)</option>
@@ -2733,6 +2747,21 @@ function openDayModal(iso, showForm){
   bindRteToolbars(document.getElementById('order-modal-box'));
   bindQuickAddProto('f', 'f-classe', 'f-protocole');
 
+  const titreInput = document.getElementById('f-titre');
+  const titreSuggestEl = document.getElementById('f-titre-suggest');
+  titreInput.addEventListener('input', ()=>{
+    const val = titreInput.value.trim();
+    const match = val ? orders.filter(o=>(o.titre||'').trim().toLowerCase()===val.toLowerCase())
+      .sort((a,b)=>b.date.localeCompare(a.date))[0] : null;
+    if(match){
+      titreSuggestEl.style.display = 'block';
+      titreSuggestEl.innerHTML = `Une commande « ${escapeHtml(match.titre)} » existe déjà (${fmtDateShort(match.date)}). <button type="button" id="f-titre-load-btn">Charger ses infos</button>`;
+      document.getElementById('f-titre-load-btn').addEventListener('click', ()=> applyOrderTemplateToForm(match));
+    }else{
+      titreSuggestEl.style.display = 'none';
+    }
+  });
+
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
@@ -2763,6 +2792,7 @@ function openDayModal(iso, showForm){
 
     const profSel = document.getElementById('f-prof').value;
     const prof = profSel==='__autre__' ? document.getElementById('f-prof-autre').value.trim() : profSel;
+    const titre = document.getElementById('f-titre').value.trim();
     const classeSel = document.getElementById('f-classe').value;
     const classe = classeSel==='__autre__' ? document.getElementById('f-classe-autre').value.trim() : classeSel;
     const horaire = combineHoraire(document.getElementById('f-horaire-debut').value, document.getElementById('f-horaire-fin').value);
@@ -2800,7 +2830,7 @@ function openDayModal(iso, showForm){
 
     try{
       await createOrderAndDeductStock({
-        prof, date: iso, classe, horaire, salle, items, notes,
+        prof, date: iso, classe, horaire, salle, items, notes, titre,
         protocoleTitre: protocole ? protocole.titre : null,
         protocoleLien: protocole ? protocole.lien : null
       });
@@ -2894,6 +2924,46 @@ function setupMatImportUI(containerId, prefix){
     panel.innerHTML = matImportPanelInitialHtml(prefix);
     wireMatImportPanel(containerId, prefix);
   });
+}
+
+function applyOrderTemplateToForm(match){
+  if(match.classe && CLASSES_SORTED.includes(match.classe)){
+    document.getElementById('f-classe').value = match.classe;
+    document.getElementById('f-classe-autre').style.display = 'none';
+  }else if(match.classe){
+    document.getElementById('f-classe').value = '__autre__';
+    document.getElementById('f-classe-autre').style.display = 'block';
+    document.getElementById('f-classe-autre').value = match.classe;
+  }
+
+  const { debut, fin } = parseHoraire(match.horaire);
+  document.getElementById('f-horaire-debut').value = debut;
+  document.getElementById('f-horaire-fin').value = fin;
+
+  if(match.salle && SALLES.includes(match.salle)){
+    document.getElementById('f-salle').value = match.salle;
+    document.getElementById('f-salle-autre').style.display = 'none';
+  }else if(match.salle){
+    document.getElementById('f-salle').value = '__autre__';
+    document.getElementById('f-salle-autre').style.display = 'block';
+    document.getElementById('f-salle-autre').value = match.salle;
+  }
+
+  const protocoleMatch = match.protocoleTitre ? protocoles.find(p=>p.titre===match.protocoleTitre) : null;
+  updateProtocoleOptions(document.getElementById('f-classe').value, 'f-protocole', protocoleMatch ? protocoleMatch.id : '');
+
+  setRteContent('f-notes', match.notes||'');
+
+  document.getElementById('items-container').innerHTML = '';
+  modalItemRowCount = 0;
+  if(match.items && match.items.length){
+    match.items.forEach(it=> addModalItemRow('items-container', it));
+  }else{
+    addModalItemRow(); addModalItemRow();
+  }
+
+  modalDirty = true;
+  document.getElementById('f-titre-suggest').style.display = 'none';
 }
 
 function addModalItemRow(containerId, prefill){
@@ -3283,7 +3353,7 @@ function openDuplicateModal(order){
     try{
       await createOrderAndDeductStock({
         prof: order.prof, date: newDate, classe: order.classe||'', horaire: order.horaire||'',
-        salle: order.salle||'', items: order.items||[], notes: order.notes||'',
+        salle: order.salle||'', items: order.items||[], notes: order.notes||'', titre: order.titre||'',
         protocoleTitre: order.protocoleTitre||null, protocoleLien: order.protocoleLien||null
       });
       closeModal();
@@ -3323,6 +3393,11 @@ function openEditOrderModal(order){
               <option value="__autre__" ${!profInList?'selected':''}>Autre (préciser)</option>
             </select>
             <input type="text" id="e-prof-autre" placeholder="Nom de l'enseignant" style="display:${!profInList?'block':'none'};margin-top:6px;" value="${!profInList?escapeHtml(order.prof||''):''}">
+          </div>
+          <div class="field">
+            <label for="e-titre">Titre du TP (optionnel)</label>
+            <input type="text" id="e-titre" placeholder="Ex : Dissection cœur de porc" list="e-titre-list" maxlength="120" value="${escapeHtml(order.titre||'')}">
+            <datalist id="e-titre-list">${Array.from(new Set(orders.map(o=>o.titre).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr')).map(t=>`<option value="${escapeHtml(t)}">`).join('')}</datalist>
           </div>
           <div class="field">
             <label for="e-classe">Classe</label>
@@ -3423,6 +3498,7 @@ function openEditOrderModal(order){
     const date = document.getElementById('e-date').value;
     const profSel = document.getElementById('e-prof').value;
     const prof = profSel==='__autre__' ? document.getElementById('e-prof-autre').value.trim() : profSel;
+    const titre = document.getElementById('e-titre').value.trim();
     const classeSel = document.getElementById('e-classe').value;
     const classe = classeSel==='__autre__' ? document.getElementById('e-classe-autre').value.trim() : classeSel;
     const horaire = combineHoraire(document.getElementById('e-horaire-debut').value, document.getElementById('e-horaire-fin').value);
@@ -3454,7 +3530,7 @@ function openEditOrderModal(order){
 
     try{
       await updateOrderAndAdjustStock(order, {
-        prof, date, classe, horaire, salle, items, notes,
+        prof, date, classe, horaire, salle, items, notes, titre,
         protocoleTitre: protocole ? protocole.titre : null,
         protocoleLien: protocole ? protocole.lien : null
       });
