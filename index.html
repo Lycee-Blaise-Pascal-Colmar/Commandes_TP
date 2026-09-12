@@ -285,6 +285,19 @@
     border:none;padding:5px 10px;border-radius:3px;cursor:pointer;
   }
   .titre-suggest button:hover{filter:brightness(1.08);}
+  .stats-kpis{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 22px;}
+  .stats-kpi{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px 20px;min-width:150px;text-align:center;}
+  .stats-kpi-value{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:700;color:var(--teal-dark);}
+  .stats-kpi-label{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .stats-section{margin-bottom:28px;}
+  .stats-section-title{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;margin-bottom:10px;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.04em;}
+  .stat-bar-row{display:grid;grid-template-columns:160px 1fr auto;gap:10px;align-items:center;margin-bottom:7px;font-size:13.5px;}
+  .stat-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .stat-bar-track{background:var(--paper);border:1px solid var(--border);border-radius:3px;height:16px;overflow:hidden;}
+  .stat-bar-fill{background:var(--teal);height:100%;border-radius:2px;}
+  .stat-bar-value{font-family:'IBM Plex Mono',monospace;font-weight:600;white-space:nowrap;}
+  .stat-bar-extra{font-family:'IBM Plex Sans',sans-serif;font-weight:400;color:var(--ink-soft);font-size:12px;}
+  @media (max-width:640px){ .stat-bar-row{grid-template-columns:100px 1fr auto;} .stat-bar-label{font-size:12.5px;} }
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;}
   .slip-meta{font-size:14px;color:var(--ink-soft);margin-top:2px;}
   .slip-meta b{color:var(--ink);font-weight:500;}
@@ -532,6 +545,7 @@
       <button id="view-recherche">🔎 Recherche</button>
       <button id="view-catalogue">Catalogue</button>
       <button id="view-protocoles">Protocoles</button>
+      <button id="view-stats">📊 Statistiques</button>
       <button id="view-corbeille">🗑 Corbeille</button>
     </div>
   </div>
@@ -1231,6 +1245,7 @@ function render(){
   else if(currentView==='prepare') html = renderPrepare();
   else if(currentView==='catalogue') html = renderCatalogue();
   else if(currentView==='corbeille') html = renderCorbeille();
+  else if(currentView==='stats') html = renderStats();
   else html = renderProtocoles();
   document.getElementById('content').innerHTML = html;
   attachContentHandlers();
@@ -1569,6 +1584,104 @@ function renderBackupBlock(){
       <div class="backup-block-text">Vous pouvez restaurer des éléments à partir d'un fichier de sauvegarde téléchargé précédemment (bouton 💾 Sauvegarder en haut de page). Seuls les éléments absents des données actuelles seront recréés — rien d'existant ne sera écrasé.</div>
       <button type="button" id="restore-backup-btn" class="download-btn">📤 Restaurer depuis une sauvegarde</button>
       <input type="file" id="restore-backup-input" accept="application/json" style="display:none;">
+    </div>`;
+}
+
+function schoolYearOf(iso){
+  const d = new Date(iso+'T00:00:00');
+  const y = d.getFullYear();
+  return d.getMonth()+1 >= 8 ? y : y-1; // l'année scolaire démarre en août/septembre
+}
+function schoolYearLabel(y){ return `${y}-${y+1}`; }
+
+function renderStats(){
+  const allYears = Array.from(new Set(orders.map(o=>schoolYearOf(o.date)))).sort((a,b)=>b-a);
+  const currentSY = schoolYearOf(todayIso());
+  if(window._statsYear===undefined) window._statsYear = allYears.includes(currentSY) ? currentSY : (allYears[0] ?? currentSY);
+  const yearVal = window._statsYear; // null = toutes les années
+
+  const list = yearVal===null ? orders.slice() : orders.filter(o=>schoolYearOf(o.date)===yearVal);
+
+  const yearOptionsHtml = `
+    <option value="toutes" ${yearVal===null?'selected':''}>Toutes les années</option>
+    ${allYears.map(y=>`<option value="${y}" ${yearVal===y?'selected':''}>Année ${schoolYearLabel(y)}</option>`).join('')}`;
+
+  if(list.length===0){
+    return `
+      <div class="agenda-filters">
+        <select id="stats-year">${yearOptionsHtml}</select>
+      </div>
+      <div class="empty">Aucune commande sur cette période.</div>`;
+  }
+
+  // --- KPI ---
+  const nbCommandes = list.length;
+  const profsSet = new Set(list.map(o=>o.prof).filter(Boolean));
+  const articleCounts = new Map(); // nom -> { count, qty }
+  list.forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      const key = (it.name||'').trim();
+      if(!key) return;
+      const cur = articleCounts.get(key) || { count:0, qty:0, unit:it.unit||'' };
+      cur.count++;
+      cur.qty += Number(it.qty)||0;
+      articleCounts.set(key, cur);
+    });
+  });
+
+  // --- Commandes par mois ---
+  const byMonth = new Map();
+  list.forEach(o=>{
+    const mk = o.date.slice(0,7); // YYYY-MM
+    byMonth.set(mk, (byMonth.get(mk)||0)+1);
+  });
+  const monthKeys = [...byMonth.keys()].sort();
+  const maxMonthCount = Math.max(1, ...monthKeys.map(k=>byMonth.get(k)));
+
+  // --- Commandes par enseignant ---
+  const byProf = new Map();
+  list.forEach(o=>{
+    const p = o.prof || '—';
+    byProf.set(p, (byProf.get(p)||0)+1);
+  });
+  const profRows = [...byProf.entries()].sort((a,b)=>b[1]-a[1]);
+  const maxProfCount = Math.max(1, ...profRows.map(r=>r[1]));
+
+  // --- Matériel le plus demandé ---
+  const topArticles = [...articleCounts.entries()].sort((a,b)=>b[1].count-a[1].count).slice(0,10);
+  const maxArticleCount = Math.max(1, ...topArticles.map(a=>a[1].count));
+
+  const barRow = (label, value, max, extra)=>`
+    <div class="stat-bar-row">
+      <div class="stat-bar-label">${escapeHtml(label)}</div>
+      <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.max(4, value/max*100)}%;"></div></div>
+      <div class="stat-bar-value">${value}${extra?` <span class="stat-bar-extra">${extra}</span>`:''}</div>
+    </div>`;
+
+  return `
+    <div class="agenda-filters">
+      <select id="stats-year">${yearOptionsHtml}</select>
+    </div>
+
+    <div class="stats-kpis">
+      <div class="stats-kpi"><div class="stats-kpi-value">${nbCommandes}</div><div class="stats-kpi-label">Commande${nbCommandes!==1?'s':''}${yearVal===null?' au total':' cette année'}</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-value">${profsSet.size}</div><div class="stats-kpi-label">Enseignant${profsSet.size!==1?'s':''} actif${profsSet.size!==1?'s':''}</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-value">${articleCounts.size}</div><div class="stats-kpi-label">Article${articleCounts.size!==1?'s':''} différent${articleCounts.size!==1?'s':''} commandé${articleCounts.size!==1?'s':''}</div></div>
+    </div>
+
+    <div class="stats-section">
+      <div class="stats-section-title">Commandes par mois</div>
+      ${monthKeys.map(mk=> barRow(capitalize(fmtMonthKey(mk+'-01')), byMonth.get(mk), maxMonthCount)).join('')}
+    </div>
+
+    <div class="stats-section">
+      <div class="stats-section-title">Commandes par enseignant</div>
+      ${profRows.map(([p,c])=> barRow(p, c, maxProfCount)).join('')}
+    </div>
+
+    <div class="stats-section">
+      <div class="stats-section-title">Matériel le plus demandé</div>
+      ${topArticles.map(([name,d])=> barRow(name, d.count, maxArticleCount, `commandé ${d.count} fois · qté totale ${d.qty}${d.unit?' '+escapeHtml(d.unit):''}`)).join('')}
     </div>`;
 }
 
@@ -1949,6 +2062,13 @@ function attachPrepareHandlers(root){
 
 function attachContentHandlers(){
   attachPrepareHandlers();
+  const statsYearSel = document.getElementById('stats-year');
+  if(statsYearSel){
+    statsYearSel.addEventListener('change', e=>{
+      window._statsYear = e.target.value==='toutes' ? null : Number(e.target.value);
+      render();
+    });
+  }
   const emptyTrashBtn = document.getElementById('empty-trash-btn');
   if(emptyTrashBtn){
     emptyTrashBtn.addEventListener('click', async ()=>{
@@ -3730,6 +3850,7 @@ document.getElementById('view-parprof').addEventListener('click', ()=>{ currentV
 document.getElementById('view-recherche').addEventListener('click', ()=>{ currentView='recherche'; setActiveView(); render(); });
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
+document.getElementById('view-stats').addEventListener('click', ()=>{ currentView='stats'; setActiveView(); render(); });
 document.getElementById('view-corbeille').addEventListener('click', ()=>{ currentView='corbeille'; setActiveView(); render(); });
 
 function setActiveView(){
@@ -3740,6 +3861,7 @@ function setActiveView(){
   document.getElementById('view-recherche').classList.toggle('active', currentView==='recherche');
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
+  document.getElementById('view-stats').classList.toggle('active', currentView==='stats');
   document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
 }
 
