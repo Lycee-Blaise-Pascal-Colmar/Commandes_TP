@@ -298,6 +298,34 @@
   .stat-bar-value{font-family:'IBM Plex Mono',monospace;font-weight:600;white-space:nowrap;}
   .stat-bar-extra{font-family:'IBM Plex Sans',sans-serif;font-weight:400;color:var(--ink-soft);font-size:12px;}
   @media (max-width:640px){ .stat-bar-row{grid-template-columns:100px 1fr auto;} .stat-bar-label{font-size:12.5px;} }
+  .planning-day-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 16px;}
+  .planning-day-tab{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--card);border:1px solid var(--border);
+    padding:7px 12px;cursor:pointer;color:var(--ink-soft);border-radius:4px;
+  }
+  .planning-day-tab.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+  .planning-day-tab:hover:not(.active){border-color:var(--teal);}
+  .planning-grid-wrap{overflow-x:auto;}
+  table.planning-grid{border-collapse:collapse;width:100%;min-width:640px;}
+  table.planning-grid th{
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+    padding:6px 4px;border-bottom:2px solid var(--border);text-align:center;
+  }
+  table.planning-grid td{border:1px solid var(--border);vertical-align:top;padding:0;}
+  .planning-hour-label{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);white-space:nowrap;
+    padding:6px 8px !important;background:var(--paper);text-align:right;
+  }
+  .planning-cell-empty{background:var(--card);}
+  .planning-cell-booked{padding:3px !important;}
+  .planning-booking{
+    height:100%;padding:6px 8px;border-left:3px solid;border-radius:3px;font-size:12.5px;line-height:1.35;
+    cursor:pointer;
+  }
+  .planning-booking + .planning-booking{margin-top:3px;}
+  .planning-booking-titre{font-weight:700;}
+  .planning-booking-prof{font-weight:600;}
+  .planning-booking-classe{opacity:0.85;}
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;}
   .slip-meta{font-size:14px;color:var(--ink-soft);margin-top:2px;}
   .slip-meta b{color:var(--ink);font-weight:500;}
@@ -538,13 +566,13 @@
       <button id="print-week-btn" class="download-btn">🖨 Imprimer une semaine</button>
     </div>
     <div class="view-toggle">
-      <button id="view-cal" class="active">Calendrier</button>
-      <button id="view-prepare">À préparer</button>
-      <button id="view-agenda">Vue d'ensemble</button>
-      <button id="view-parprof">Par enseignant</button>
+      <button id="view-cal" class="active">📅 Calendrier</button>
+      <button id="view-prepare">✅ À préparer</button>
+      <button id="view-planning">🏫 Planning salles</button>
+      <button id="view-agenda">🕓 Historique</button>
       <button id="view-recherche">🔎 Recherche</button>
-      <button id="view-catalogue">Catalogue</button>
-      <button id="view-protocoles">Protocoles</button>
+      <button id="view-catalogue">📦 Catalogue</button>
+      <button id="view-protocoles">📄 Protocoles</button>
       <button id="view-stats">📊 Statistiques</button>
       <button id="view-corbeille">🗑 Corbeille</button>
     </div>
@@ -595,6 +623,8 @@ let importTextValue = '';
 let importPreviewRows = null;
 let cursor = new Date(); cursor.setDate(1);
 let prepareCursor = mondayOf(todayIso()); // lundi de la semaine affichée dans "À préparer"
+let planningWeekCursor = mondayOf(todayIso()); // lundi de la semaine affichée dans "Planning salles"
+let planningDayCursor = todayIso(); // jour sélectionné dans cette semaine
 let unsubscribeOrders = null;
 let unsubscribeCatalogue = null;
 let unsubscribeProtocoles = null;
@@ -1240,12 +1270,12 @@ function render(){
   let html;
   if(currentView==='cal') html = renderCalendar();
   else if(currentView==='agenda') html = renderAgenda();
-  else if(currentView==='parprof') html = renderParEnseignant();
   else if(currentView==='recherche') html = renderRecherche();
   else if(currentView==='prepare') html = renderPrepare();
   else if(currentView==='catalogue') html = renderCatalogue();
   else if(currentView==='corbeille') html = renderCorbeille();
   else if(currentView==='stats') html = renderStats();
+  else if(currentView==='planning') html = renderPlanning();
   else html = renderProtocoles();
   document.getElementById('content').innerHTML = html;
   attachContentHandlers();
@@ -1327,6 +1357,7 @@ function renderAgenda(){
 
   const monthLabel = mkey => capitalize(fmtMonthKey(mkey+'-01'));
   const curIdx = monthKeys.indexOf(monthVal);
+  const groupBy = window._agendaGroupBy==='enseignant' ? 'enseignant' : 'mois';
 
   let filtersHtml = `
     ${renderProfLegend(profs)}
@@ -1348,11 +1379,27 @@ function renderAgenda(){
         <button type="button" id="agenda-month-next" title="Mois suivant (avec commandes)" ${monthKeys.length===0 || curIdx===monthKeys.length-1?'disabled':''}>›</button>
       </div>
       <button type="button" class="download-btn" id="download-csv">⬇ Télécharger (${list.length})</button>
+      <button type="button" class="cat-toggle-all" id="agenda-group-toggle">${groupBy==='enseignant' ? '📅 Grouper par mois' : '👤 Grouper par enseignant'}</button>
     </div>`;
 
   let body;
   if(list.length===0){
     body = '<div class="empty">Aucune commande ne correspond à ces filtres.</div>';
+  }else if(groupBy==='enseignant'){
+    body = '';
+    const byProf = new Map();
+    list.forEach(o=>{
+      const p = o.prof || '—';
+      if(!byProf.has(p)) byProf.set(p, []);
+      byProf.get(p).push(o);
+    });
+    const profNames = [...byProf.keys()].sort((a,b)=>a.localeCompare(b,'fr'));
+    profNames.forEach(p=>{
+      const profOrders = byProf.get(p);
+      const c = getProfColor(p);
+      body += `<div class="month-heading" style="border-left:4px solid ${c.border};padding-left:8px;">${escapeHtml(p)} — ${profOrders.length} commande${profOrders.length!==1?'s':''}</div>`;
+      profOrders.forEach(o=> body += renderSlip(o));
+    });
   }else{
     body = '';
     let currentMonth = null;
@@ -1363,38 +1410,6 @@ function renderAgenda(){
     }
   }
   return filtersHtml + body;
-}
-
-function renderParEnseignant(){
-  const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
-  if(window._profViewFilter && window._profViewFilter!=='tous' && !profs.includes(window._profViewFilter)){
-    window._profViewFilter = 'tous';
-  }
-  const selectedProf = window._profViewFilter || 'tous';
-
-  let html = `<div class="agenda-filters">
-      <select id="profview-select">
-        <option value="tous">Tous les enseignants</option>
-        ${profs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
-      </select>
-    </div>`;
-
-  if(profs.length===0){
-    return html + '<div class="empty">Aucune commande enregistrée.</div>';
-  }
-
-  const filteredProfs = selectedProf==='tous' ? profs : [selectedProf];
-  filteredProfs.forEach(p=>{
-    const profOrders = orders.filter(o=>o.prof===p).sort((a,b)=>a.date.localeCompare(b.date));
-    const c = getProfColor(p);
-    html += `<div class="month-heading" style="border-left:4px solid ${c.border};padding-left:8px;">${escapeHtml(p)} — ${profOrders.length} commande${profOrders.length!==1?'s':''}</div>`;
-    if(profOrders.length===0){
-      html += '<div class="empty">Aucune commande.</div>';
-    }else{
-      profOrders.forEach(o=> html += renderSlip(o));
-    }
-  });
-  return html;
 }
 
 function renderSearchResults(q){
@@ -1683,6 +1698,100 @@ function renderStats(){
       <div class="stats-section-title">Matériel le plus demandé</div>
       ${topArticles.map(([name,d])=> barRow(name, d.count, maxArticleCount, `commandé ${d.count} fois · qté totale ${d.qty}${d.unit?' '+escapeHtml(d.unit):''}`)).join('')}
     </div>`;
+}
+
+function renderPlanning(){
+  // La semaine affichée doit toujours contenir le jour sélectionné.
+  if(planningDayCursor < planningWeekCursor || planningDayCursor > isoDate((()=>{ const d=new Date(planningWeekCursor+'T00:00:00'); d.setDate(d.getDate()+5); return d; })())){
+    planningDayCursor = planningWeekCursor;
+  }
+
+  const weekStart = planningWeekCursor;
+  const dayLabels = ['Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const days = dayLabels.map((label,i)=>{
+    const d = new Date(weekStart+'T00:00:00'); d.setDate(d.getDate()+i);
+    return { iso: isoDate(d), label, dateShort: fmtDateShort(isoDate(d)) };
+  });
+  const isCurrentWeek = weekStart === mondayOf(todayIso());
+
+  const dayIso = planningDayCursor;
+  const dayOrders = orders.filter(o=>o.date===dayIso);
+
+  const nav = `
+    <div class="agenda-filters prepare-nav">
+      <button type="button" id="planning-prev-week" title="Semaine précédente">‹</button>
+      <div class="prepare-week-label">
+        <div>${weekRangeLabel(weekStart)}</div>
+        ${!isCurrentWeek ? '<button type="button" id="planning-today-week" class="link-btn">revenir à cette semaine</button>' : ''}
+      </div>
+      <button type="button" id="planning-next-week" title="Semaine suivante">›</button>
+    </div>
+    <div class="planning-day-tabs">
+      ${days.map(d=>`<button type="button" class="planning-day-tab${d.iso===dayIso?' active':''}" data-day="${d.iso}">${d.label} ${d.dateShort}</button>`).join('')}
+    </div>`;
+
+  // Répartition des commandes du jour par salle, avec index de créneau horaire (0 = 8h-9h ... 9 = 17h-18h)
+  const bySalle = new Map(); // salle -> [{startIdx, endIdx, order}]
+  const sansHoraireOuSalle = [];
+  dayOrders.forEach(o=>{
+    const { debut, fin } = parseHoraire(o.horaire);
+    const startIdx = HORAIRE_TIMES.indexOf(debut);
+    const endIdx = HORAIRE_TIMES.indexOf(fin);
+    if(!o.salle || startIdx===-1 || endIdx===-1 || endIdx<=startIdx){
+      sansHoraireOuSalle.push(o);
+      return;
+    }
+    if(!bySalle.has(o.salle)) bySalle.set(o.salle, []);
+    bySalle.get(o.salle).push({ startIdx, endIdx, order:o });
+  });
+
+  const nbRows = HORAIRE_TIMES.length - 1; // 10 créneaux d'une heure entre 8h et 18h
+  // Pour chaque salle, mémorise jusqu'à quelle ligne la cellule précédente s'étend (rowspan en cours)
+  const skipUntil = new Map(SALLES.map(s=>[s,0]));
+
+  let rowsHtml = '';
+  for(let row=0; row<nbRows; row++){
+    let cellsHtml = '';
+    for(const salle of SALLES){
+      if(row < skipUntil.get(salle)) continue; // cellule déjà couverte par un rowspan précédent
+      const bookings = (bySalle.get(salle)||[]).filter(b=>b.startIdx===row);
+      if(bookings.length===0){
+        cellsHtml += `<td class="planning-cell-empty"></td>`;
+        continue;
+      }
+      const span = Math.max(...bookings.map(b=>b.endIdx-b.startIdx));
+      skipUntil.set(salle, row+span);
+      cellsHtml += `<td class="planning-cell-booked" rowspan="${span}">
+        ${bookings.map(b=>{
+          const o = b.order;
+          const profColor = getProfColor(o.prof);
+          return `<div class="planning-booking" style="background:${profColor.bg};color:${profColor.text};border-left-color:${profColor.text};" data-open-order="${o.id}">
+            ${o.titre?`<div class="planning-booking-titre">${escapeHtml(o.titre)}</div>`:''}
+            <div class="planning-booking-prof">${escapeHtml(o.prof)}</div>
+            ${o.classe?`<div class="planning-booking-classe">${escapeHtml(o.classe)}</div>`:''}
+          </div>`;
+        }).join('')}
+      </td>`;
+    }
+    rowsHtml += `<tr><td class="planning-hour-label">${HORAIRE_TIMES[row]}–${HORAIRE_TIMES[row+1]}</td>${cellsHtml}</tr>`;
+  }
+
+  const grid = `
+    <div class="planning-grid-wrap">
+      <table class="planning-grid">
+        <thead><tr><th></th>${SALLES.map(s=>`<th>${escapeHtml(s)}</th>`).join('')}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+
+  const sansHoraireHtml = sansHoraireOuSalle.length ? `
+    <div class="stats-section-title" style="margin-top:18px;">Sans salle ou sans horaire précis ce jour-là</div>
+    ${sansHoraireOuSalle.map(o=>renderSlip(o)).join('')}` : '';
+
+  if(dayOrders.length===0){
+    return nav + '<div class="empty">Aucune commande ce jour-là.</div>';
+  }
+  return nav + grid + sansHoraireHtml;
 }
 
 function renderCorbeille(){
@@ -2069,6 +2178,35 @@ function attachContentHandlers(){
       render();
     });
   }
+  const planningPrevWeekBtn = document.getElementById('planning-prev-week');
+  if(planningPrevWeekBtn){
+    planningPrevWeekBtn.addEventListener('click', ()=>{
+      const d = new Date(planningWeekCursor+'T00:00:00'); d.setDate(d.getDate()-7);
+      planningWeekCursor = isoDate(d); planningDayCursor = planningWeekCursor; render();
+    });
+  }
+  const planningNextWeekBtn = document.getElementById('planning-next-week');
+  if(planningNextWeekBtn){
+    planningNextWeekBtn.addEventListener('click', ()=>{
+      const d = new Date(planningWeekCursor+'T00:00:00'); d.setDate(d.getDate()+7);
+      planningWeekCursor = isoDate(d); planningDayCursor = planningWeekCursor; render();
+    });
+  }
+  const planningTodayBtn = document.getElementById('planning-today-week');
+  if(planningTodayBtn){
+    planningTodayBtn.addEventListener('click', ()=>{
+      planningWeekCursor = mondayOf(todayIso()); planningDayCursor = todayIso(); render();
+    });
+  }
+  document.querySelectorAll('.planning-day-tab').forEach(el=>{
+    el.addEventListener('click', ()=>{ planningDayCursor = el.getAttribute('data-day'); render(); });
+  });
+  document.querySelectorAll('[data-open-order]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const order = orders.find(o=>o.id===el.getAttribute('data-open-order'));
+      if(order) openEditOrderModal(order);
+    });
+  });
   const emptyTrashBtn = document.getElementById('empty-trash-btn');
   if(emptyTrashBtn){
     emptyTrashBtn.addEventListener('click', async ()=>{
@@ -2273,10 +2411,12 @@ function attachContentHandlers(){
       else if(idx<opts.length-1){ window._agendaMonthFilter = opts[idx+1]; render(); }
     });
   }
-  const profViewSel = document.getElementById('profview-select');
-  if(profViewSel){
-    profViewSel.value = window._profViewFilter || 'tous';
-    profViewSel.addEventListener('change', e=>{ window._profViewFilter = e.target.value; render(); });
+  const agendaGroupBtn = document.getElementById('agenda-group-toggle');
+  if(agendaGroupBtn){
+    agendaGroupBtn.addEventListener('click', ()=>{
+      window._agendaGroupBy = (window._agendaGroupBy==='enseignant') ? 'mois' : 'enseignant';
+      render();
+    });
   }
   const searchInput = document.getElementById('search-input');
   if(searchInput){
@@ -3846,22 +3986,22 @@ document.getElementById('print-week-btn').addEventListener('click', ()=> openPri
 document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
 document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
 document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
-document.getElementById('view-parprof').addEventListener('click', ()=>{ currentView='parprof'; setActiveView(); render(); });
 document.getElementById('view-recherche').addEventListener('click', ()=>{ currentView='recherche'; setActiveView(); render(); });
 document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
 document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
 document.getElementById('view-stats').addEventListener('click', ()=>{ currentView='stats'; setActiveView(); render(); });
+document.getElementById('view-planning').addEventListener('click', ()=>{ currentView='planning'; setActiveView(); render(); });
 document.getElementById('view-corbeille').addEventListener('click', ()=>{ currentView='corbeille'; setActiveView(); render(); });
 
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
   document.getElementById('view-prepare').classList.toggle('active', currentView==='prepare');
   document.getElementById('view-agenda').classList.toggle('active', currentView==='agenda');
-  document.getElementById('view-parprof').classList.toggle('active', currentView==='parprof');
   document.getElementById('view-recherche').classList.toggle('active', currentView==='recherche');
   document.getElementById('view-catalogue').classList.toggle('active', currentView==='catalogue');
   document.getElementById('view-protocoles').classList.toggle('active', currentView==='protocoles');
   document.getElementById('view-stats').classList.toggle('active', currentView==='stats');
+  document.getElementById('view-planning').classList.toggle('active', currentView==='planning');
   document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
 }
 
