@@ -18,145 +18,199 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#EDEFE9; --paper-line:#D6DACC; --ink:#1E2B24; --ink-soft:#52604F; --ink-faint:#8A9184;
-    --card:#F7F8F3; --surface:#ffffff; --teal:#2F6B5E; --teal-dark:#1F4A40; --teal-pale:#DCEAE5;
-    --amber:#B9791E; --amber-pale:#F3E4C8; --rust:#A6452F; --rust-pale:#F1DCD3; --border:#C7CDBB;
+    --paper:#F5F6F1; --paper-line:#E4E7DD; --ink:#1E2B24; --ink-soft:#5B6858; --ink-faint:#93998A;
+    --card:#FBFCF9; --surface:#ffffff; --teal:#2F6B5E; --teal-dark:#1F4A40; --teal-pale:#E3EEEA;
+    --amber:#B9791E; --amber-pale:#F6EBD4; --rust:#A6452F; --rust-pale:#F4E1D9; --border:#DBDFD2;
+    --shadow-color:30,43,36;
+    --shadow-sm:0 1px 2px rgba(var(--shadow-color),0.05), 0 2px 6px rgba(var(--shadow-color),0.05);
+    --shadow-md:0 2px 4px rgba(var(--shadow-color),0.04), 0 10px 24px rgba(var(--shadow-color),0.08);
+    --shadow-lg:0 8px 16px rgba(var(--shadow-color),0.08), 0 24px 48px rgba(var(--shadow-color),0.14);
+    --r-sm:8px; --r-md:12px; --r-lg:18px;
   }
   html[data-theme="dark"]{
-    --paper:#242B25; --paper-line:#343E36; --ink:#EDF0E8; --ink-soft:#B7C0AF; --ink-faint:#828C7A;
-    --card:#2B332C; --surface:#313A32; --teal:#5AA292; --teal-dark:#3A7A6B; --teal-pale:#374238;
-    --amber:#DFAE66; --amber-pale:#453820; --rust:#E28B6C; --rust-pale:#45291F; --border:#4A5449;
+    --paper:#1B211C; --paper-line:#2A322B; --ink:#EDF0E8; --ink-soft:#AEB8A6; --ink-faint:#77816F;
+    --card:#242B25; --surface:#2A322B; --teal:#5AA292; --teal-dark:#4E9384; --teal-pale:#2E3B34;
+    --amber:#DFAE66; --amber-pale:#3A3121; --rust:#E28B6C; --rust-pale:#3B2620; --border:#38412F;
+    --shadow-color:0,0,0;
   }
   html[data-theme="dark"] .modal, html[data-theme="dark"] .login-box{
-    box-shadow:0 12px 32px rgba(0,0,0,0.45);
+    box-shadow:var(--shadow-lg);
   }
+  ::selection{background:var(--teal-pale);color:var(--teal-dark);}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+  ::-webkit-scrollbar{width:11px;height:11px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:20px;border:3px solid var(--paper);background-clip:padding-box;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ink-faint);background-clip:padding-box;}
+  *{scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+  input:user-invalid, select:user-invalid, textarea:user-invalid{border-color:var(--rust)!important;}
   *{box-sizing:border-box;}
   body{
     margin:0;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
     background-color:var(--paper);
-    background-image:
-      linear-gradient(var(--paper-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
-    background-size: 100% 28px, 28px 100%;
-    background-position: 0 0, 0 0;
-    background-attachment: fixed;
     transition:background-color .15s ease, color .15s ease;
   }
   body::before{content:none;}
-  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px;position:relative;}
+  .wrap{max-width:1120px;margin:0 auto;padding:36px 22px 80px;position:relative;}
 
   header.top{
-    display:flex;justify-content:space-between;align-items:flex-end;
-    border-bottom:3px solid var(--ink);padding-bottom:16px;margin-bottom:30px;flex-wrap:wrap;gap:12px;
+    display:flex;justify-content:space-between;align-items:center;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);
+    padding:18px 22px;margin-bottom:26px;flex-wrap:wrap;gap:12px;
     position:relative;
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 22px, 22px 100%;
+    background-position: -1px -1px;
   }
-  header.top::after{
-    content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--ink);opacity:0.35;
-  }
-  header.top .brand{display:flex;align-items:center;gap:12px;}
+  header.top::after{content:none;}
+  header.top .brand{display:flex;align-items:center;gap:14px;}
   header.top .brand svg{flex:none;color:var(--teal-dark);}
-  header.top h1{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:22px;margin:0;letter-spacing:-0.01em;}
-  header.top .sub{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  header.top .brand > svg{width:40px;height:40px;padding:8px;background:linear-gradient(135deg,var(--teal-pale),var(--surface));border:1px solid var(--border);border-radius:var(--r-md);box-sizing:border-box;box-shadow:var(--shadow-sm);}
+  header.top h1{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:21px;margin:0;letter-spacing:-0.01em;}
+  header.top .sub{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink-soft);margin-top:3px;}
   .conn-status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);}
   .conn-status.ok{color:var(--teal-dark);}
   .conn-status.err{color:var(--rust);}
-  .top-right{display:flex;align-items:center;gap:14px;}
+  .top-right{display:flex;align-items:center;gap:8px;}
   .top-action-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-faint);
-    background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--ink-soft);
+    background:var(--paper);border:1px solid transparent;border-radius:var(--r-sm);padding:6px 11px;cursor:pointer;
+    text-decoration:none;transition:background .15s ease,color .15s ease,border-color .15s ease;
   }
-  .top-action-btn:hover{color:var(--ink-soft);}
+  .top-action-btn:hover{color:var(--teal-dark);background:var(--teal-pale);}
+  .theme-switch{
+    display:inline-flex;align-items:center;gap:8px;background:none;border:none;padding:4px 6px;
+    cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink-soft);
+    border-radius:var(--r-sm);transition:background .15s ease,color .15s ease;
+  }
+  .theme-switch:hover{color:var(--teal-dark);background:var(--teal-pale);}
+  .theme-switch-track{
+    width:36px;height:20px;background:var(--border);border-radius:999px;position:relative;flex:none;
+    transition:background .2s ease;
+  }
+  .theme-switch-thumb{
+    position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);
+    box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;
+    transition:transform .2s ease;
+  }
+  html[data-theme="dark"] .theme-switch-track{background:var(--teal-dark);}
+  html[data-theme="dark"] .theme-switch-thumb{transform:translateX(16px);}
 
   .login-screen{
     min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 24px, 24px 100%;
+    background-position:center;
   }
-  .login-box{
-    background:var(--card);border:1px solid var(--border);border-radius:6px;padding:28px 26px;
+  .login-screen::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(circle at 50% 40%, var(--paper) 0%, var(--paper) 35%, transparent 75%);
+    pointer-events:none;
+  }
+  .login-box{position:relative;z-index:1;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px 28px;
     width:100%;max-width:340px;display:flex;flex-direction:column;gap:6px;
-    box-shadow:0 2px 0 var(--border);
+    box-shadow:var(--shadow-md);
   }
-  .login-box h2{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin:0 0 4px;}
-  .login-box .login-sub{font-size:14px;color:var(--ink-soft);margin:0 0 14px;}
-  .login-box label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-top:8px;}
+  .login-box h2{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;margin:0 0 4px;}
+  .login-box .login-sub{font-size:14px;color:var(--ink-soft);margin:0 0 14px;line-height:1.5;}
+  .login-box label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-top:10px;}
   .login-box input{
-    font-family:'IBM Plex Sans',sans-serif;font-size:15px;padding:9px 10px;border:1px solid var(--border);
-    border-radius:4px;background:var(--paper);color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;font-size:15px;padding:10px 12px;border:1px solid var(--border);
+    border-radius:var(--r-sm);background:var(--paper);color:var(--ink);transition:border-color .15s ease;
   }
+  .login-box input:focus{border-color:var(--teal);}
   .login-box button{
-    margin-top:16px;padding:10px;border:none;border-radius:4px;background:var(--teal-dark);color:var(--paper);
-    font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;cursor:pointer;
+    margin-top:18px;padding:11px;border:none;border-radius:var(--r-sm);background:var(--teal-dark);color:#fff;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14.5px;font-weight:600;cursor:pointer;transition:background .15s ease,transform .1s ease;
   }
-  .login-box button:hover{background:var(--teal);}
+  .login-box button:hover{background:var(--teal);transform:translateY(-1px);}
   .login-box .err{color:var(--rust);font-size:13px;margin-top:8px;}
 
   .prof-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);}
   .prof-legend span{display:inline-flex;align-items:center;gap:5px;}
-  .prof-legend i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .prof-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
   .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
-  .month-nav{display:flex;align-items:center;gap:10px;}
+  .month-nav{display:flex;align-items:center;gap:8px;}
   .month-nav button{
-    font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--card);
-    border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
+    font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 13px;cursor:pointer;color:var(--ink);
+    box-shadow:var(--shadow-sm);transition:border-color .15s ease, background .15s ease, transform .1s ease;
   }
-  .month-nav button:hover{border-color:var(--teal);background:var(--teal-pale);}
-  .month-title{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;cursor:pointer;border-radius:4px;transition:background .12s ease;background:none;border:1px solid transparent;color:var(--ink);padding:4px 6px;}
+  .month-nav button:hover{border-color:var(--teal);background:var(--teal-pale);transform:translateY(-1px);}
+  .month-title{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;min-width:180px;text-align:center;text-transform:capitalize;cursor:pointer;border-radius:var(--r-sm);transition:background .12s ease;background:none;border:1px solid transparent;color:var(--ink);padding:6px 8px;}
   .month-title:hover{background:var(--teal-pale);}
   .month-title-wrap{position:relative;}
   .month-picker-popover{
-    position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:40;
-    background:var(--card);border:1px solid var(--border);box-shadow:0 6px 18px rgba(30,43,36,0.15);
-    padding:10px;width:230px;
+    position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:40;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-lg);
+    padding:12px;width:230px;
   }
   .month-picker-year-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
   .month-picker-year-nav button{
     font-family:'IBM Plex Mono',monospace;font-size:14px;background:none;border:1px solid var(--border);
-    padding:3px 9px;cursor:pointer;color:var(--ink);
+    border-radius:var(--r-sm);padding:3px 9px;cursor:pointer;color:var(--ink);
   }
   .month-picker-year-nav button:hover{border-color:var(--teal);background:var(--teal-pale);}
   .month-picker-year-label{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14.5px;}
   .month-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
   .month-picker-grid button{
-    font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--surface);border:1px solid var(--border);
-    padding:7px 4px;cursor:pointer;color:var(--ink);text-transform:capitalize;
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--paper);border:1px solid var(--border);
+    border-radius:var(--r-sm);padding:7px 4px;cursor:pointer;color:var(--ink);text-transform:capitalize;
   }
   .month-picker-grid button:hover{border-color:var(--teal);background:var(--teal-pale);}
   .month-picker-grid button.current{background:var(--teal-dark);border-color:var(--teal-dark);color:#fff;}
   .agenda-month-nav{display:flex;align-items:center;gap:6px;}
   .agenda-month-nav button{
-    font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--card);
-    border:1px solid var(--border);padding:6px 10px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
+    font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 11px;cursor:pointer;color:var(--ink);
+    box-shadow:var(--shadow-sm);transition:border-color .15s ease, background .15s ease;
   }
   .agenda-month-nav button:hover:not(:disabled){border-color:var(--teal);background:var(--teal-pale);}
   .agenda-month-nav button:disabled{opacity:0.35;cursor:default;}
-  .view-toggle{display:flex;border:1px solid var(--border);}
+  .view-toggle{display:flex;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;gap:2px;flex-wrap:wrap;}
   .view-toggle button{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--card);
-    border:none;padding:7px 14px;cursor:pointer;color:var(--ink-soft);
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;background:none;
+    border:none;border-radius:var(--r-sm);padding:8px 14px;cursor:pointer;color:var(--ink-soft);transition:background .15s ease,color .15s ease,box-shadow .15s ease;
+    display:inline-flex;align-items:center;gap:7px;
   }
-  .view-toggle button.active{background:var(--teal-dark);color:#fff;}
+  .nav-icon{width:15px;height:15px;flex:none;}
+  .view-toggle button:hover:not(.active){background:var(--surface);color:var(--ink);}
+  .view-toggle button.active{background:var(--teal-dark);color:#fff;box-shadow:var(--shadow-sm);}
 
   /* Calendar */
-  .cal-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1.35fr)) repeat(2,minmax(0,0.5fr));border-left:1px solid var(--border);border-top:1px solid var(--border);}
+  .cal-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1.35fr)) repeat(2,minmax(0,0.5fr));
+    border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
   .cal-dow{
     font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;
-    color:var(--ink-soft);padding:6px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    color:var(--ink-soft);padding:9px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
     background:var(--card);min-width:0;
   }
   .cal-cell{
-    min-height:96px;min-width:0;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-    padding:6px 6px 8px;background:var(--surface);cursor:pointer;position:relative;transition:background .12s ease;
+    min-height:100px;min-width:0;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    padding:7px 7px 9px;background:var(--surface);cursor:pointer;position:relative;
+    transition:background .18s ease, box-shadow .18s ease;
   }
   .cal-cell:hover{background:var(--teal-pale);}
   .cal-cell.other-month{background:var(--paper);color:var(--ink-faint);}
   .cal-cell.weekend{background:var(--paper);}
   .cal-cell.weekend .cal-daynum{color:var(--ink-faint);}
-  .cal-cell.vacances{background:repeating-linear-gradient(135deg, var(--paper) 0px, var(--paper) 9px, var(--paper-line) 9px, var(--paper-line) 10px);}
+  .cal-cell.vacances{background:var(--paper);}
+  .cal-cell.vacances::after{content:"";position:absolute;top:8px;left:8px;width:5px;height:5px;border-radius:50%;background:var(--ink-faint);opacity:.5;}
   .cal-cell.ferie{background:var(--amber-pale);}
   .cal-cell.ferie .cal-daynum{color:var(--amber);}
+  .cal-cell.today{box-shadow:none;}
+  .cal-cell.today .cal-daynum{
+    color:#fff;background:var(--teal-dark);display:inline-flex;align-items:center;justify-content:center;
+    width:24px;height:24px;border-radius:50%;
+  }
   .cal-ferie-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber);font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cal-vacances-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.03em;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .cal-cell.today{box-shadow:inset 0 0 0 2px var(--teal);}
-  .cal-cell.today .cal-daynum{color:var(--teal-dark);}
   .cal-cell.locked{
     background:repeating-linear-gradient(135deg, var(--paper) 0px, var(--paper) 6px, var(--paper-line) 6px, var(--paper-line) 7px);
   }
@@ -175,14 +229,15 @@
 
   .order-tooltip{
     position:fixed;z-index:500;width:260px;max-width:calc(100vw - 24px);background:var(--surface);
-    border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.2);
-    padding:10px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink);
+    border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-lg);
+    padding:11px 13px;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink);
     pointer-events:none;opacity:0;transform:translateY(4px);
     transition:opacity .1s ease, transform .1s ease;
   }
   .order-tooltip.visible{opacity:1;transform:translateY(0);}
   .order-tooltip .ot-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
-  .order-tooltip .ot-title{font-weight:600;font-size:14px;margin-bottom:2px;}
+  .order-tooltip .ot-title{font-weight:600;font-size:14px;margin-bottom:2px;display:flex;align-items:center;gap:6px;}
+  .ot-prof-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;}
   .order-tooltip .ot-meta{color:var(--ink-soft);margin-bottom:6px;}
   .order-tooltip ul{margin:0 0 0;padding-left:16px;}
   .order-tooltip li{line-height:1.45;}
@@ -193,13 +248,13 @@
 
   .ctx-menu{
     position:fixed;z-index:600;min-width:170px;background:var(--surface);border:1px solid var(--border);
-    border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.22);padding:4px;font-family:'IBM Plex Sans',sans-serif;
+    border-radius:var(--r-md);box-shadow:var(--shadow-lg);padding:5px;font-family:'IBM Plex Sans',sans-serif;
     font-size:13.5px;display:none;
   }
   .ctx-menu.visible{display:block;}
   .ctx-menu button{
     display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:none;background:none;
-    border-radius:4px;text-align:left;cursor:pointer;color:var(--ink);font-family:inherit;font-size:inherit;
+    border-radius:var(--r-sm);text-align:left;cursor:pointer;color:var(--ink);font-family:inherit;font-size:inherit;transition:background .12s ease;
   }
   .ctx-menu button:hover{background:var(--paper-line);}
   .ctx-menu button.danger{color:var(--red,#b3311b);}
@@ -217,7 +272,7 @@
   @media (max-width:700px){ .cal-add-btn{opacity:1;top:2px;right:2px;width:16px;height:16px;line-height:14px;font-size:11px;} }
   .cal-tags{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
   .cal-tag{
-    font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:2px 5px;
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:2px 6px;border-radius:4px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--teal);
     background:var(--teal-pale);color:var(--teal-dark);
   }
@@ -233,11 +288,16 @@
   .agenda-filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .prepare-count{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink-soft);margin-right:auto;}
   .prepare-nav{align-items:center;}
-  .prepare-nav #prepare-prev-week, .prepare-nav #prepare-next-week{
-    font-family:'IBM Plex Mono',monospace;font-size:16px;background:var(--card);
-    border:1px solid var(--border);padding:6px 12px;cursor:pointer;color:var(--ink);transition:border-color .12s ease, background .12s ease;
+  .prepare-nav #prepare-prev-week, .prepare-nav #prepare-next-week,
+  .prepare-nav #planning-prev-week, .prepare-nav #planning-next-week{
+    font-family:'IBM Plex Mono',monospace;font-size:16px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 13px;cursor:pointer;color:var(--ink);
+    box-shadow:var(--shadow-sm);transition:border-color .15s ease, background .15s ease, transform .1s ease;
   }
-  .prepare-nav #prepare-prev-week:hover, .prepare-nav #prepare-next-week:hover{border-color:var(--teal);background:var(--teal-pale);}
+  .prepare-nav #prepare-prev-week:hover, .prepare-nav #prepare-next-week:hover,
+  .prepare-nav #planning-prev-week:hover, .prepare-nav #planning-next-week:hover{
+    border-color:var(--teal);background:var(--teal-pale);transform:translateY(-1px);
+  }
   .prepare-week-label{font-family:'IBM Plex Mono',monospace;font-size:14.5px;font-weight:600;text-align:center;min-width:220px;}
   .prepare-week-label .link-btn{
     display:block;font-family:'IBM Plex Sans',sans-serif;font-weight:400;font-size:11.5px;color:var(--ink-faint);
@@ -249,10 +309,11 @@
   #cat-search{padding:7px 10px;border:1px solid var(--border);font-family:'IBM Plex Sans',sans-serif;font-size:14px;min-width:180px;}
   .agenda-filters select{font-family:'IBM Plex Mono',monospace;font-size:13.5px;padding:7px 8px;border:1px solid var(--border);background:var(--card);}
   .download-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:13.5px;padding:7px 12px;
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13.5px;padding:8px 14px;border-radius:var(--r-sm);
     border:1px solid var(--teal-dark);background:var(--teal-dark);color:#fff;cursor:pointer;margin-left:auto;
+    box-shadow:var(--shadow-sm);transition:background .15s ease,transform .1s ease;
   }
-  .download-btn:hover{background:var(--teal);}
+  .download-btn:hover{background:var(--teal);transform:translateY(-1px);}
   .month-heading{
     font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600;color:var(--ink-soft);
     text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
@@ -271,61 +332,73 @@
     font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;opacity:0.65;line-height:1;
   }
   .cat-group-rename:hover{opacity:1;}
+  .cat-group-rename .nav-icon{vertical-align:-2px;}
   .cat-toggle-all{
-    font-family:'IBM Plex Mono',monospace;font-size:12px;background:none;border:1px solid var(--border);
-    color:var(--ink-soft);padding:4px 9px;cursor:pointer;border-radius:3px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;background:none;border:1px solid var(--border);
+    color:var(--ink-soft);padding:5px 10px;cursor:pointer;border-radius:var(--r-sm);transition:background .15s ease,color .15s ease;
   }
   .cat-toggle-all:hover{background:var(--teal-pale);color:var(--teal-dark);}
-  .slip{position:relative;background:var(--card);color:var(--ink);border:1px solid var(--border);margin-bottom:14px;padding:14px 16px 12px;box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
+  .slip{position:relative;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:14px;padding:15px 17px 13px;box-shadow:var(--shadow-sm);transition:box-shadow .15s ease;}
+  .slip:hover{box-shadow:var(--shadow-md);}
   .slip-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
   .slip-titre{font-family:'IBM Plex Sans',sans-serif;font-size:15.5px;font-weight:700;margin-bottom:2px;}
-  .titre-suggest{margin-top:8px;padding:9px 11px;background:var(--teal-pale);border:1px solid var(--teal);border-radius:4px;font-size:13px;line-height:1.5;color:var(--ink);}
+  .titre-suggest{margin-top:8px;padding:10px 12px;background:var(--teal-pale);border:1px solid var(--teal);border-radius:var(--r-sm);font-size:13px;line-height:1.5;color:var(--ink);}
   .titre-suggest button{
-    margin-left:6px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--teal-dark);color:#fff;
-    border:none;padding:5px 10px;border-radius:3px;cursor:pointer;
+    margin-left:6px;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:500;background:var(--teal-dark);color:#fff;
+    border:none;padding:5px 10px;border-radius:var(--r-sm);cursor:pointer;
   }
   .titre-suggest button:hover{filter:brightness(1.08);}
   .stats-kpis{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 22px;}
-  .stats-kpi{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px 20px;min-width:150px;text-align:center;}
+  .stats-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-sm);padding:16px 22px;min-width:150px;text-align:center;}
   .stats-kpi-value{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:700;color:var(--teal-dark);}
   .stats-kpi-label{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
   .stats-section{margin-bottom:28px;}
   .stats-section-title{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;margin-bottom:10px;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.04em;}
   .stat-bar-row{display:grid;grid-template-columns:160px 1fr auto;gap:10px;align-items:center;margin-bottom:7px;font-size:13.5px;}
   .stat-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .stat-bar-track{background:var(--paper);border:1px solid var(--border);border-radius:3px;height:16px;overflow:hidden;}
-  .stat-bar-fill{background:var(--teal);height:100%;border-radius:2px;}
+  .stat-bar-track{background:var(--paper);border:1px solid var(--border);border-radius:20px;height:16px;overflow:hidden;}
+  .stat-bar-fill{background:linear-gradient(90deg,var(--teal-dark),var(--teal));height:100%;border-radius:20px;}
   .stat-bar-value{font-family:'IBM Plex Mono',monospace;font-weight:600;white-space:nowrap;}
   .stat-bar-extra{font-family:'IBM Plex Sans',sans-serif;font-weight:400;color:var(--ink-soft);font-size:12px;}
   @media (max-width:640px){ .stat-bar-row{grid-template-columns:100px 1fr auto;} .stat-bar-label{font-size:12.5px;} }
   .planning-day-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 16px;}
   .planning-day-tab{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--card);border:1px solid var(--border);
-    padding:7px 12px;cursor:pointer;color:var(--ink-soft);border-radius:4px;
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;background:var(--surface);border:1px solid var(--border);
+    padding:7px 13px;cursor:pointer;color:var(--ink-soft);border-radius:var(--r-sm);box-shadow:var(--shadow-sm);transition:background .15s ease,color .15s ease;
   }
   .planning-day-tab.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
   .planning-day-tab:hover:not(.active){border-color:var(--teal);}
-  .planning-grid-wrap{overflow-x:auto;}
-  table.planning-grid{border-collapse:collapse;width:100%;min-width:640px;}
+  .planning-grid-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);background:var(--surface);max-height:640px;}
+  table.planning-grid{border-collapse:separate;border-spacing:0;width:100%;min-width:680px;}
   table.planning-grid th{
-    font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--ink-soft);
-    padding:6px 4px;border-bottom:2px solid var(--border);text-align:center;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--ink-soft);
+    padding:11px 6px;border-bottom:1px solid var(--border);text-align:center;
+    text-transform:uppercase;letter-spacing:0.05em;background:var(--card);
+    position:sticky;top:0;z-index:2;
   }
-  table.planning-grid td{border:1px solid var(--border);vertical-align:top;padding:0;}
+  table.planning-grid th:first-child{position:sticky;left:0;top:0;z-index:3;}
+  table.planning-grid td{border-bottom:1px solid var(--paper-line);border-right:1px solid var(--paper-line);vertical-align:top;padding:0;}
+  table.planning-grid td:last-child{border-right:none;}
+  table.planning-grid tbody tr:last-child td{border-bottom:none;}
+  table.planning-grid tbody tr:nth-child(5) .planning-hour-label,
+  table.planning-grid tbody tr:nth-child(5) .planning-cell-empty{border-top:2px dashed var(--amber);}
+  table.planning-grid tbody tr:nth-child(5) .planning-hour-label{color:var(--amber);font-weight:600;}
   .planning-hour-label{
     font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);white-space:nowrap;
-    padding:6px 8px !important;background:var(--paper);text-align:right;
+    padding:9px 12px !important;background:var(--card);text-align:right;
+    position:sticky;left:0;z-index:1;border-right:1px solid var(--border) !important;
   }
-  .planning-cell-empty{background:var(--card);}
-  .planning-cell-booked{padding:3px !important;}
+  .planning-cell-empty{background:var(--surface);transition:background .12s ease;}
+  .planning-cell-booked{padding:4px !important;background:var(--surface);}
   .planning-booking{
-    height:100%;padding:6px 8px;border-left:3px solid;border-radius:3px;font-size:12.5px;line-height:1.35;
-    cursor:pointer;
+    height:100%;padding:7px 9px;border-left:3px solid;border-radius:var(--r-sm);font-size:12.5px;line-height:1.4;
+    cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .12s ease;
   }
-  .planning-booking + .planning-booking{margin-top:3px;}
-  .planning-booking-titre{font-weight:700;}
+  .planning-booking:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+  .planning-booking + .planning-booking{margin-top:4px;}
+  .planning-booking-titre{font-weight:700;margin-bottom:1px;}
   .planning-booking-prof{font-weight:600;}
-  .planning-booking-classe{opacity:0.85;}
+  .planning-booking-classe{opacity:0.85;font-size:12px;margin-top:1px;}
   .slip-date{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;}
   .slip-meta{font-size:14px;color:var(--ink-soft);margin-top:2px;}
   .slip-meta b{color:var(--ink);font-weight:500;}
@@ -343,11 +416,24 @@
   .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-faint);padding:0;}
   .slip-actions button:hover{color:var(--rust);}
   .slip-actions button[data-action="duplicate"]:hover{color:var(--teal-dark);}
-  .empty{text-align:center;padding:50px 20px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:14px;}
+  .empty{text-align:center;padding:56px 20px;color:var(--ink-faint);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.6;}
+  .empty::before{
+    content:"";display:block;width:38px;height:38px;margin:0 auto 14px;background-color:var(--ink-faint);opacity:.4;
+    mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 16 12 14 15 10 15 8 12 2 12'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E");
+    -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 16 12 14 15 10 15 8 12 2 12'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E");
+    mask-size:contain;mask-repeat:no-repeat;mask-position:center;
+    -webkit-mask-size:contain;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;
+  }
+  .loading{text-align:center;padding:50px;color:var(--ink-faint);font-family:'IBM Plex Sans',sans-serif;font-size:14px;}
+  .loading::before{
+    content:"";display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-3px;
+    border:2px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
 
   /* Modal */
-  .overlay{position:fixed;inset:0;background:rgba(30,43,36,0.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;animation:fadeIn .15s ease;}
-  .modal{background:var(--surface);color:var(--ink);border:1px solid var(--border);max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:22px 24px 24px;box-shadow:0 12px 32px rgba(30,43,36,0.18);animation:riseIn .18s ease;}
+  .overlay{position:fixed;inset:0;background:rgba(20,28,23,0.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;animation:fadeIn .15s ease;}
+  .modal{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:var(--r-lg);max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:24px 26px 26px;box-shadow:var(--shadow-lg);animation:riseIn .18s ease;}
   .modal.modal-wide{max-width:800px;}
   @media (min-width:900px){
     .modal.modal-wide .item-row{grid-template-columns:1fr 90px 110px 28px;}
@@ -365,16 +451,16 @@
   .field{margin-bottom:12px;}
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   input[type=text],input[type=number],select,textarea{
-    width:100%;border:1px solid var(--border);background:var(--surface);padding:8px 9px;font-size:15px;
-    font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
+    width:100%;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);padding:9px 10px;font-size:15px;
+    font-family:'IBM Plex Sans',sans-serif;color:var(--ink);transition:border-color .15s ease;
   }
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-pale);}
   textarea{resize:vertical;min-height:48px;}
-  .rte-wrap{border:1px solid var(--border);background:var(--surface);}
+  .rte-wrap{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);overflow:hidden;}
   .rte-toolbar{display:flex;gap:2px;padding:4px;border-bottom:1px solid var(--border);background:var(--paper);}
   .rte-btn{
-    width:28px;height:26px;border:1px solid transparent;background:none;border-radius:2px;
-    cursor:pointer;color:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:13px;
+    width:28px;height:26px;border:1px solid transparent;background:none;border-radius:var(--r-sm);
+    cursor:pointer;color:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:13px;transition:background .12s ease;
   }
   .rte-btn:hover{border-color:var(--border);background:var(--surface);color:var(--ink);}
   .rte-editor{
@@ -391,23 +477,24 @@
   .it-name-wrap{display:flex;flex-direction:column;gap:3px;}
   .it-category{font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;padding:3px 5px;border:1px solid var(--border);background:var(--paper);color:var(--ink-soft);}
   .add-item-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--teal-dark);background:none;
-    border:1px dashed var(--border);padding:6px 10px;cursor:pointer;width:100%;margin-top:2px;
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;color:var(--teal-dark);background:none;
+    border:1.5px dashed var(--border);border-radius:var(--r-sm);padding:8px 10px;cursor:pointer;width:100%;margin-top:2px;
+    transition:border-color .15s ease,background .15s ease;
   }
-  .add-item-btn:hover{border-color:var(--teal);}
+  .add-item-btn:hover{border-color:var(--teal);background:var(--teal-pale);}
   .submit-btn{
-    width:100%;margin-top:12px;background:var(--teal-dark);color:#fff;border:none;padding:11px;
-    font-family:'IBM Plex Mono',monospace;font-size:14.5px;font-weight:500;cursor:pointer;
+    width:100%;margin-top:12px;background:var(--teal-dark);color:#fff;border:none;border-radius:var(--r-sm);padding:12px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14.5px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-sm);
+    transition:background .15s ease,transform .1s ease;
   }
-  .submit-btn:hover{background:var(--teal);}
+  .submit-btn:hover{background:var(--teal);transform:translateY(-1px);}
   .err{color:var(--rust);font-size:13px;margin:-6px 0 8px;font-family:'IBM Plex Mono',monospace;}
-  .loading{text-align:center;padding:40px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;font-size:14px;}
 
   /* Catalogue */
   .cat-intro{font-size:14.5px;color:var(--ink-soft);max-width:640px;margin-bottom:18px;line-height:1.5;}
   .backup-block{margin-top:24px;padding-top:18px;border-top:1px dashed var(--border);}
   .backup-block-text{font-size:13.5px;color:var(--ink-soft);max-width:560px;margin-bottom:10px;line-height:1.5;}
-  .cat-list{border:1px solid var(--border);background:var(--card);box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05);}
+  .cat-list{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm);}
   .cat-row{
     display:grid;grid-template-columns:26px 1fr 110px 104px;gap:10px;align-items:center;
     padding:10px 14px;border-bottom:1px solid var(--paper-line);
@@ -428,9 +515,9 @@
   .cat-unit{color:var(--ink-soft);font-size:13px;}
   .cat-actions{display:flex;gap:4px;justify-content:flex-end;}
   .cat-icon-btn{
-    width:28px;height:28px;display:flex;align-items:center;justify-content:center;
-    background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;
-    font-size:14px;color:var(--ink-faint);padding:0;line-height:1;
+    width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+    background:none;border:1px solid transparent;border-radius:var(--r-sm);cursor:pointer;
+    font-size:14px;color:var(--ink-faint);padding:0;line-height:1;transition:background .12s ease,color .12s ease,border-color .12s ease;
   }
   .cat-icon-btn:hover{color:var(--teal-dark);border-color:var(--border);background:var(--surface);}
   .cat-icon-btn.danger:hover{color:var(--rust);}
@@ -440,11 +527,13 @@
   .cat-bulk-bar{
     display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     padding:9px 14px;background:var(--teal-pale);border:1px solid var(--teal);border-bottom:none;
-    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);
+    border-radius:var(--r-md) var(--r-md) 0 0;
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;color:var(--ink);
   }
-  .cat-bulk-bar .cat-bulk-count{font-weight:600;}
-  .cat-bulk-bar select{font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:5px 8px;}
-  .cat-bulk-bar button{font-family:'IBM Plex Mono',monospace;font-size:13px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);cursor:pointer;}
+  .cat-bulk-bar + .cat-list{border-top:none;border-top-left-radius:0;border-top-right-radius:0;}
+  .cat-bulk-bar .cat-bulk-count{font-weight:700;}
+  .cat-bulk-bar select{font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;padding:5px 8px;border-radius:var(--r-sm);}
+  .cat-bulk-bar button{font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;padding:6px 11px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer;transition:border-color .15s ease,color .15s ease;}
   .cat-bulk-bar button:hover{border-color:var(--teal-dark);color:var(--teal-dark);}
   .cat-bulk-bar button.danger:hover{border-color:var(--rust);color:var(--rust);}
   @media (max-width:640px){
@@ -463,14 +552,14 @@
   @media (max-width:640px){
     .proto-classes-check{grid-template-columns:1fr;}
   }
-  .cat-import{margin-top:24px;max-width:640px;padding:14px 16px;background:var(--card);border:1px solid var(--border);}
+  .cat-import{margin-top:24px;max-width:640px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-sm);}
   .cat-import-help{font-size:13.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.5;}
   .cat-import-help code{font-family:'IBM Plex Mono',monospace;background:var(--paper);padding:1px 4px;}
   .cat-import textarea{font-family:'IBM Plex Mono',monospace;font-size:13.5px;}
   .cat-import-actions{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;}
   .file-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);
-    border:1px solid var(--border);padding:6px 10px;cursor:pointer;background:var(--surface);
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;color:var(--ink-soft);border-radius:var(--r-sm);
+    border:1px solid var(--border);padding:7px 12px;cursor:pointer;background:var(--surface);
   }
   .file-btn:hover{border-color:var(--teal);color:var(--teal-dark);}
   #import-preview{margin-top:12px;}
@@ -516,7 +605,10 @@
 </head>
 <body>
 <div id="login-screen" class="login-screen">
-  <button id="theme-toggle-btn-login" class="top-action-btn" type="button" title="Basculer entre thème clair et sombre" style="position:absolute;top:20px;right:20px;">🌙 Mode sombre</button>
+  <button id="theme-toggle-btn-login" class="theme-switch" type="button" title="Basculer entre thème clair et sombre" style="position:absolute;top:20px;right:20px;">
+    <span class="theme-switch-track"><span class="theme-switch-thumb" id="theme-thumb-login">🌙</span></span>
+    <span id="theme-label-login">Mode sombre</span>
+  </button>
   <form id="login-form" class="login-box">
     <h2>Connexion</h2>
     <p class="login-sub">Connectez-vous avec l'identifiant de l'équipe pour accéder à l'agenda.</p>
@@ -542,14 +634,16 @@
       <div>
         <div style="display:flex;align-items:center;gap:10px;">
           <h1>Agenda des commandes — TP SVT/STL</h1>
-          <button id="theme-toggle-btn" class="top-action-btn" type="button" title="Basculer entre thème clair et sombre" style="font-size:16px;text-decoration:none;">🌙</button>
+          <button id="theme-toggle-btn" class="theme-switch" type="button" title="Basculer entre thème clair et sombre">
+            <span class="theme-switch-track"><span class="theme-switch-thumb" id="theme-thumb-header">🌙</span></span>
+          </button>
         </div>
         <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
       </div>
     </div>
     <div class="top-right">
       <div class="conn-status" id="conn-status">Connexion à Firebase…</div>
-      <button id="backup-btn" class="top-action-btn" type="button" title="Télécharger une copie complète des données (commandes, catalogue, protocoles) au format JSON">💾 Sauvegarder</button>
+      <button id="backup-btn" class="top-action-btn" type="button" title="Télécharger une copie complète des données (commandes, catalogue, protocoles) au format JSON"><svg class="nav-icon" style="margin-right:4px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Sauvegarder</button>
       <button id="logout-btn" class="top-action-btn" type="button">Se déconnecter</button>
     </div>
   </header>
@@ -563,18 +657,18 @@
       </div>
       <button id="next-month">›</button>
       <button id="today-btn">Aujourd'hui</button>
-      <button id="print-week-btn" class="download-btn">🖨 Imprimer une semaine</button>
+      <button id="print-week-btn" class="download-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer une semaine</button>
     </div>
     <div class="view-toggle">
-      <button id="view-cal" class="active">📅 Calendrier</button>
-      <button id="view-prepare">✅ À préparer</button>
-      <button id="view-planning">🏫 Planning salles</button>
-      <button id="view-agenda">🕓 Historique</button>
-      <button id="view-recherche">🔎 Recherche</button>
-      <button id="view-catalogue">📦 Catalogue</button>
-      <button id="view-protocoles">📄 Protocoles</button>
-      <button id="view-stats">📊 Statistiques</button>
-      <button id="view-corbeille">🗑 Corbeille</button>
+      <button id="view-cal" class="active"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg>Calendrier</button>
+      <button id="view-prepare"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>À préparer</button>
+      <button id="view-planning"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>Planning salles</button>
+      <button id="view-agenda"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Historique</button>
+      <button id="view-recherche"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>Recherche</button>
+      <button id="view-catalogue"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Catalogue</button>
+      <button id="view-protocoles"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><line x1="10" y1="12" x2="17" y2="12"/><line x1="10" y1="16" x2="17" y2="16"/></svg>Protocoles</button>
+      <button id="view-stats"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="12"/><line x1="12" y1="21" x2="12" y2="7"/><line x1="19" y1="21" x2="19" y2="15"/></svg>Statistiques</button>
+      <button id="view-corbeille"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Corbeille</button>
     </div>
   </div>
 
@@ -1062,9 +1156,10 @@ function renderOrderTooltipHtml(o){
   const itemsHtml = shownItems.map(it=>`<li>${escapeHtml(it.name)}${it.qty?` — ${it.qty} ${escapeHtml(it.unit||'')}`:''}</li>`).join('');
   const notesPlain = o.notes ? richTextToPlain(o.notes) : '';
   const notesShort = notesPlain.length>150 ? notesPlain.slice(0,150)+'…' : notesPlain;
+  const profColor = getProfColor(o.prof);
   return `
     <div class="ot-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
-    <div class="ot-title">${escapeHtml(o.prof)}</div>
+    <div class="ot-title"><i class="ot-prof-dot" style="background:${profColor.border};"></i>${escapeHtml(o.prof)}</div>
     <div class="ot-meta">${[o.classe, o.salle?('Salle '+o.salle):null].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</div>
     ${itemsHtml ? `<ul>${itemsHtml}${extra>0?`<li class="ot-more">+${extra} autre(s)</li>`:''}</ul>` : '<div class="ot-meta">Aucun matériel renseigné</div>'}
     ${o.protocoleTitre ? `<div class="ot-notes">Protocole : ${escapeHtml(o.protocoleTitre)}</div>` : ''}
@@ -1116,9 +1211,9 @@ function showCtxMenu(order, x, y){
   const el = ensureCtxMenuEl();
   el.innerHTML = `
     <div class="ctx-header">${escapeHtml(order.prof)} · ${capitalize(fmtDateShort(order.date))}</div>
-    <button type="button" data-act="edit">✏️ Modifier</button>
-    <button type="button" data-act="duplicate">📋 Dupliquer</button>
-    <button type="button" data-act="delete" class="danger">🗑️ Supprimer</button>
+    <button type="button" data-act="edit"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>Modifier</button>
+    <button type="button" data-act="duplicate"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Dupliquer</button>
+    <button type="button" data-act="delete" class="danger"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Supprimer</button>
   `;
   el.classList.add('visible');
   // Position au point de clic/appui, en restant dans la fenêtre visible
@@ -1496,7 +1591,7 @@ function renderPrepare(){
       </div>
       <button type="button" id="prepare-next-week" title="Semaine suivante">›</button>
       <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine</div>
-      <button type="button" class="download-btn" id="print-prepare-btn">🖨 Imprimer cette semaine</button>
+      <button type="button" class="download-btn" id="print-prepare-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer cette semaine</button>
       <button type="button" class="download-btn" id="pdf-prepare-btn" style="background:var(--teal);border-color:var(--teal);">⬇ PDF</button>
     </div>`;
 
@@ -1597,7 +1692,7 @@ function renderBackupBlock(){
   return `
     <div class="backup-block">
       <div class="backup-block-text">Vous pouvez restaurer des éléments à partir d'un fichier de sauvegarde téléchargé précédemment (bouton 💾 Sauvegarder en haut de page). Seuls les éléments absents des données actuelles seront recréés — rien d'existant ne sera écrasé.</div>
-      <button type="button" id="restore-backup-btn" class="download-btn">📤 Restaurer depuis une sauvegarde</button>
+      <button type="button" id="restore-backup-btn" class="download-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 13l5-5 5 5"/><path d="M4 21h16"/></svg>Restaurer depuis une sauvegarde</button>
       <input type="file" id="restore-backup-input" accept="application/json" style="display:none;">
     </div>`;
 }
@@ -1845,7 +1940,7 @@ function renderCorbeille(){
     <div class="cat-wrap">
       <div class="cat-intro" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <span>Les éléments supprimés sont conservés ${TRASH_RETENTION_DAYS} jours avant suppression définitive (et, pour les commandes, restitution automatique du matériel au stock).</span>
-        <button type="button" id="empty-trash-btn" class="file-btn" style="white-space:nowrap;">🗑 Vider la corbeille</button>
+        <button type="button" id="empty-trash-btn" class="file-btn" style="white-space:nowrap;"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Vider la corbeille</button>
       </div>
       <div class="month-heading">Commandes (${ordersSorted.length})</div>
       ${ordersHtml}
@@ -1918,8 +2013,8 @@ function renderCatalogue(){
       <div class="cat-actions">
         <button type="button" class="cat-icon-btn" data-action="restock-cat" data-id="${it.id}" title="Ajouter 1 au stock">+1</button>
         <button type="button" class="cat-icon-btn" data-action="destock-cat" data-id="${it.id}" title="Retirer 1 du stock">-1</button>
-        <button type="button" class="cat-icon-btn" data-action="edit-cat" data-id="${it.id}" title="Modifier">✏️</button>
-        <button type="button" class="cat-icon-btn danger" data-action="delete-cat" data-id="${it.id}" title="Supprimer">🗑️</button>
+        <button type="button" class="cat-icon-btn" data-action="edit-cat" data-id="${it.id}" title="Modifier"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
+        <button type="button" class="cat-icon-btn danger" data-action="delete-cat" data-id="${it.id}" title="Supprimer"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg></button>
       </div>
     </div>`;
   };
@@ -1935,7 +2030,7 @@ function renderCatalogue(){
         <span class="cat-group-arrow">▶</span>
         <span>${key==='__sans__' ? 'Sans catégorie' : escapeHtml(key)}</span>
         <span class="cat-group-count">${groupItems.length}</span>
-        ${key!=='__sans__' ? `<button type="button" class="cat-group-rename" data-action="rename-cat-group" data-group="${escapeHtml(key)}" title="Renommer cette catégorie">✏️</button>` : ''}
+        ${key!=='__sans__' ? `<button type="button" class="cat-group-rename" data-action="rename-cat-group" data-group="${escapeHtml(key)}" title="Renommer cette catégorie"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>` : ''}
       </div>
       ${isCollapsed ? '' : groupItems.map(rowHtml).join('')}
     `;
@@ -1953,7 +2048,7 @@ function renderCatalogue(){
           <option value="">Aucune</option>
           ${categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
         </select>
-        <button type="button" id="cat-bulk-delete-btn" class="danger">🗑️ Supprimer la sélection</button>
+        <button type="button" id="cat-bulk-delete-btn" class="danger"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Supprimer la sélection</button>
         <button type="button" id="cat-bulk-clear-btn">Annuler la sélection</button>
       </div>` : '';
 
@@ -3519,7 +3614,7 @@ function openPrintWeekModal(){
             <input type="date" id="pw-date" value="${todayIso()}" required>
           </div>
           <div style="display:flex;gap:8px;">
-            <button type="submit" class="submit-btn" style="flex:1;">🖨 Imprimer</button>
+            <button type="submit" class="submit-btn" style="flex:1;"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer</button>
             <button type="button" class="submit-btn" id="pw-pdf-btn" style="flex:1;background:var(--teal);">⬇ PDF</button>
           </div>
         </form>
@@ -4058,10 +4153,12 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
 // --- Thème sombre ---------------------------------------------------
 function updateThemeButtons(){
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const btn1 = document.getElementById('theme-toggle-btn');
-  const btn2 = document.getElementById('theme-toggle-btn-login');
-  if(btn1) btn1.textContent = isDark ? '☀️' : '🌙';
-  if(btn2) btn2.textContent = isDark ? '☀️ Mode clair' : '🌙 Mode sombre';
+  const thumb1 = document.getElementById('theme-thumb-header');
+  const thumb2 = document.getElementById('theme-thumb-login');
+  const label2 = document.getElementById('theme-label-login');
+  if(thumb1) thumb1.textContent = isDark ? '☀️' : '🌙';
+  if(thumb2) thumb2.textContent = isDark ? '☀️' : '🌙';
+  if(label2) label2.textContent = isDark ? 'Mode clair' : 'Mode sombre';
 }
 function toggleTheme(){
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
