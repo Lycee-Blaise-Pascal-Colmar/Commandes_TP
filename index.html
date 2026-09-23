@@ -182,8 +182,8 @@
   .nav-icon{width:15px;height:15px;flex:none;}
   .view-toggle button:hover:not(.active){background:var(--surface);color:var(--ink);}
   .view-toggle button.active{background:var(--teal-dark);color:#fff;box-shadow:var(--shadow-sm);}
-  .nav-new-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--amber);margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px var(--card);}
-  .view-toggle button.active .nav-new-dot{box-shadow:0 0 0 2px var(--teal-dark);}
+  .view-toggle button.has-new{box-shadow:inset 0 0 0 2px var(--amber);}
+  .view-toggle button.active.has-new{box-shadow:inset 0 0 0 2px var(--amber), var(--shadow-sm);}
   .new-badge{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--amber);color:#fff;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle;}
   .slip.slip-new{box-shadow:0 0 0 2px var(--amber), var(--shadow-sm);}
 
@@ -680,7 +680,7 @@
     </div>
     <div class="view-toggle">
       <button id="view-cal" class="active"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg>Calendrier</button>
-      <button id="view-prepare"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>À préparer<span id="prepare-new-dot" class="nav-new-dot" style="display:none;"></span></button>
+      <button id="view-prepare"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>À préparer</button>
       <button id="view-planning"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>Planning salles</button>
       <button id="view-agenda"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Historique</button>
       <button id="view-recherche"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>Recherche</button>
@@ -747,8 +747,8 @@ function markOrdersSeen(ids){
   (ids||[]).forEach(id=>{ if(!seenOrderIds.has(id)){ seenOrderIds.add(id); changed = true; } });
   if(changed){
     localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
-    const prepareDot = document.getElementById('prepare-new-dot');
-    if(prepareDot) prepareDot.style.display = orders.some(isOrderNew) ? 'inline-block' : 'none';
+    const prepareBtn = document.getElementById('view-prepare');
+    if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
   }
 }
 function markOrderAsNew(id){
@@ -1440,8 +1440,8 @@ function openMonthPicker(){
 }
 
 function render(){
-  const prepareDot = document.getElementById('prepare-new-dot');
-  if(prepareDot) prepareDot.style.display = orders.some(isOrderNew) ? 'inline-block' : 'none';
+  const prepareBtn = document.getElementById('view-prepare');
+  if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
   document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
