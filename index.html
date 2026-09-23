@@ -578,6 +578,7 @@
   .import-list{list-style:none;margin:0 0 10px;padding:0;max-height:220px;overflow-y:auto;border-top:1px solid var(--paper-line);}
   .import-list li{padding:5px 0;font-size:14px;border-bottom:1px dotted var(--paper-line);}
   .import-tag{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--amber);border:1px solid var(--amber);padding:1px 5px;margin-left:6px;}
+  .cat-salle-tag{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);border:1px solid var(--border);border-radius:3px;padding:0px 5px;margin-left:6px;white-space:nowrap;}
   #cancel-import-btn{width:auto;flex:none;}
   #confirm-import-btn{width:auto;flex:none;margin-top:0;}
   #print-area{display:none;}
@@ -736,6 +737,7 @@ let unsubscribeProtocoles = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
+const CATALOGUE_SALLES = ['Salle 128','Salle 130','Salle 132','Salle 134','Salle 136','Salle 138','Salle 140','Salle 142'];
 const LOW_STOCK_THRESHOLD = 10;
 const CLASSES = ['1ST2S BPH','1STL Bio-bio','1STL Biotech','Biozone','Enseignement scientifique','Première SVT','Seconde Biotech','Seconde SVT','Terminale SVT','TST2S BPH','TSTL Biotech'];
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
@@ -1318,6 +1320,11 @@ function ordersByDate(iso){
 function getCatalogueCategories(){
   const fromCatalogue = catalogue.map(it=>it.categorie).filter(Boolean);
   return Array.from(new Set([...CATEGORIES, ...fromCatalogue])).sort((a,b)=>a.localeCompare(b,'fr'));
+}
+
+function getCatalogueSalles(){
+  const fromCatalogue = catalogue.map(it=>it.salle).filter(Boolean);
+  return Array.from(new Set([...CATALOGUE_SALLES, ...fromCatalogue])).sort((a,b)=>a.localeCompare(b,'fr'));
 }
 
 const MOIS_COURTS = ['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
@@ -1973,10 +1980,15 @@ function saveCollapsedCatGroups(set){
 
 function renderCatalogue(){
   const categories = getCatalogueCategories();
+  const salles = getCatalogueSalles();
   if(window._catCategoryFilter && window._catCategoryFilter!=='toutes' && window._catCategoryFilter!=='__sans__' && !categories.includes(window._catCategoryFilter)){
     window._catCategoryFilter = 'toutes'; // la catégorie filtrée n'existe plus (renommée/supprimée) : retour au filtre par défaut
   }
+  if(window._catSalleFilter && window._catSalleFilter!=='toutes' && window._catSalleFilter!=='__sans__' && !salles.includes(window._catSalleFilter)){
+    window._catSalleFilter = 'toutes'; // la salle filtrée n'existe plus : retour au filtre par défaut
+  }
   const catFilter = window._catCategoryFilter || 'toutes';
+  const salleFilter = window._catSalleFilter || 'toutes';
   const searchTerm = (window._catSearch || '').trim().toLowerCase();
   const lowStockOnly = !!window._catLowStockOnly;
   const sort = window._catSort || { key:'nom', dir:'asc' };
@@ -1985,6 +1997,7 @@ function renderCatalogue(){
 
   const items = [...catalogue]
     .filter(it=> catFilter==='toutes' || (it.categorie||'')===catFilter || (catFilter==='__sans__' && !it.categorie))
+    .filter(it=> salleFilter==='toutes' || (it.salle||'')===salleFilter || (salleFilter==='__sans__' && !it.salle))
     .filter(it=> !searchTerm || (it.nom||'').toLowerCase().includes(searchTerm))
     .filter(it=> !lowStockOnly || (it.quantite!=null && it.quantite<LOW_STOCK_THRESHOLD))
     .sort((a,b)=>{
@@ -2015,12 +2028,12 @@ function renderCatalogue(){
   });
 
   const rowHtml = it => {
-    if(it.id === editingId) return renderCatEditRow(it, categories);
+    if(it.id === editingId) return renderCatEditRow(it, categories, salles);
     const isChecked = selected.has(it.id);
     return `
     <div class="cat-row" data-id="${it.id}">
       <label class="cat-check"><input type="checkbox" class="cat-select" data-id="${it.id}" ${isChecked?'checked':''}></label>
-      <div class="cat-name">${it.nom ? escapeHtml(it.nom) : '(article sans nom — à corriger ou supprimer)'}</div>
+      <div class="cat-name">${it.nom ? escapeHtml(it.nom) : '(article sans nom — à corriger ou supprimer)'}${it.salle?` <span class="cat-salle-tag">${escapeHtml(it.salle)}</span>`:''}</div>
       <div class="cat-qty"><span class="qty-view ${it.quantite!=null && it.quantite<0 ? 'qty-negative' : ''}">${it.quantite!=null && it.quantite!==''?it.quantite:'—'}</span> <span class="cat-unit">${escapeHtml(it.unite||'')}</span></div>
       <div class="cat-actions">
         <button type="button" class="cat-icon-btn" data-action="restock-cat" data-id="${it.id}" title="Ajouter 1 au stock">+1</button>
@@ -2060,6 +2073,11 @@ function renderCatalogue(){
           <option value="">Aucune</option>
           ${categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
         </select>
+        <select id="cat-bulk-salle">
+          <option value="__noop__" selected>Changer la salle…</option>
+          <option value="">Aucune</option>
+          ${salles.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+        </select>
         <button type="button" id="cat-bulk-delete-btn" class="danger"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Supprimer la sélection</button>
         <button type="button" id="cat-bulk-clear-btn">Annuler la sélection</button>
       </div>` : '';
@@ -2074,6 +2092,11 @@ function renderCatalogue(){
           <option value="toutes">Toutes les catégories</option>
           ${categories.map(c=>`<option value="${escapeHtml(c)}" ${catFilter===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
           <option value="__sans__" ${catFilter==='__sans__'?'selected':''}>Sans catégorie</option>
+        </select>
+        <select id="cat-salle-filter">
+          <option value="toutes">Toutes les salles</option>
+          ${salles.map(s=>`<option value="${escapeHtml(s)}" ${salleFilter===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+          <option value="__sans__" ${salleFilter==='__sans__'?'selected':''}>Sans salle</option>
         </select>
         <label class="cat-lowstock-toggle">
           <input type="checkbox" id="cat-lowstock" ${lowStockOnly?'checked':''}>
@@ -2097,8 +2120,8 @@ function renderCatalogue(){
 
       <div class="cat-import">
         <div class="modal-section-label">Importer plusieurs articles d'un coup</div>
-        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité, 4) catégorie</b> — les trois derniers sont facultatifs. N'insérez pas de colonne supplémentaire entre elles : la 2ᵉ colonne est toujours lue comme la quantité, la 3ᵉ comme l'unité, la 4ᵉ comme la catégorie.</div>
-        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie&#10;Bécher 250 mL;12;;Verrerie&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
+        <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité, 4) catégorie, 5) salle</b> — les quatre derniers sont facultatifs. N'insérez pas de colonne supplémentaire entre elles : la 2ᵉ colonne est toujours lue comme la quantité, la 3ᵉ comme l'unité, la 4ᵉ comme la catégorie, la 5ᵉ comme la salle.</div>
+        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie;Salle 128&#10;Bécher 250 mL;12;;Verrerie;Salle 128&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
         <div class="cat-import-actions">
           <label class="file-btn">Choisir un fichier
             <input type="file" id="import-file" accept=".csv,.txt" hidden>
@@ -2125,23 +2148,35 @@ function renderCatalogue(){
               <select id="c-unit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
             </div>
           </div>
-          <div class="field">
-            <label for="c-category">Catégorie (optionnel)</label>
-            <select id="c-category">
-              <option value="">Aucune</option>
-              ${categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
-              <option value="__autre__">Autre (préciser)</option>
-            </select>
-            <input type="text" id="c-category-autre" placeholder="Nouvelle catégorie" style="display:none;margin-top:6px;">
+          <div class="field-row">
+            <div class="field">
+              <label for="c-category">Catégorie (optionnel)</label>
+              <select id="c-category">
+                <option value="">Aucune</option>
+                ${categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+                <option value="__autre__">Autre (préciser)</option>
+              </select>
+              <input type="text" id="c-category-autre" placeholder="Nouvelle catégorie" style="display:none;margin-top:6px;">
+            </div>
+            <div class="field">
+              <label for="c-salle">Salle (optionnel)</label>
+              <select id="c-salle">
+                <option value="">Aucune</option>
+                ${salles.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                <option value="__autre__">Autre (préciser)</option>
+              </select>
+              <input type="text" id="c-salle-autre" placeholder="Nouvelle salle" style="display:none;margin-top:6px;">
+            </div>
           </div>
           <div id="cat-err" class="err" style="display:none;"></div>
+
           <button type="submit" class="submit-btn">Ajouter au catalogue</button>
         </form>
       </div>
     </div>`;
 }
 
-function renderCatEditRow(it, categories){
+function renderCatEditRow(it, categories, salles){
   return `
     <div class="cat-row cat-row-editing" data-id="${it.id}">
       <div></div>
@@ -2155,6 +2190,12 @@ function renderCatEditRow(it, categories){
           <option value="__autre__" ${it.categorie && !categories.includes(it.categorie)?'selected':''}>Autre (préciser)</option>
         </select>
         <input type="text" id="edit-cat-category-autre" placeholder="Nouvelle catégorie" value="${it.categorie && !categories.includes(it.categorie)?escapeHtml(it.categorie):''}" style="display:${it.categorie && !categories.includes(it.categorie)?'block':'none'};">
+        <select id="edit-cat-salle">
+          <option value="">Aucune salle</option>
+          ${salles.map(s=>`<option value="${escapeHtml(s)}" ${it.salle===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+          <option value="__autre__" ${it.salle && !salles.includes(it.salle)?'selected':''}>Autre (préciser)</option>
+        </select>
+        <input type="text" id="edit-cat-salle-autre" placeholder="Nouvelle salle" value="${it.salle && !salles.includes(it.salle)?escapeHtml(it.salle):''}" style="display:${it.salle && !salles.includes(it.salle)?'block':'none'};">
       </div>
       <div class="cat-actions">
         <button type="button" class="cat-icon-btn" data-action="save-cat" data-id="${it.id}" title="Enregistrer">✓</button>
@@ -2172,7 +2213,8 @@ function parseImportText(text){
     quantite = quantite!=='' && !isNaN(Number(quantite)) ? Number(quantite) : null;
     const unite = (parts[2]||'').trim();
     const categorie = (parts[3]||'').trim();
-    return { nom, quantite, unite, categorie };
+    const salle = (parts[4]||'').trim();
+    return { nom, quantite, unite, categorie, salle };
   }).filter(r=> r.nom && !['nom','article','matériel','materiel'].includes(r.nom.toLowerCase()));
 }
 
@@ -2194,7 +2236,7 @@ function renderImportPreview(rows){
   return `
     <div class="import-summary">${rows.length} ligne${rows.length>1?'s':''} détectée${rows.length>1?'s':''} — ${nbNew} nouvel${nbNew>1?'les':'le'} article${nbNew>1?'s':''}, ${nbMaj} mise${nbMaj>1?'s':''} à jour${nbDoublonInterne?` (dont ${nbDoublonInterne} doublon${nbDoublonInterne>1?'s':''} dans la liste collée, qui seront fusionnés)`:''}.</div>
     <ul class="import-list">
-      ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}${r.categorie?' <span class="import-tag">'+escapeHtml(r.categorie)+'</span>':''}${existingNames.has(r.nom.toLowerCase())?' <span class="import-tag">mise à jour</span>':''}</li>`).join('')}
+      ${rows.slice(0,40).map(r=>`<li>${escapeHtml(r.nom)}${r.quantite!=null?' — '+r.quantite:''}${r.unite?' '+escapeHtml(r.unite):''}${r.categorie?' <span class="import-tag">'+escapeHtml(r.categorie)+'</span>':''}${r.salle?' <span class="import-tag">'+escapeHtml(r.salle)+'</span>':''}${existingNames.has(r.nom.toLowerCase())?' <span class="import-tag">mise à jour</span>':''}</li>`).join('')}
       ${rows.length>40?`<li>… et ${rows.length-40} de plus</li>`:''}
     </ul>
     <div class="cat-import-actions">
@@ -2588,6 +2630,8 @@ function attachContentHandlers(){
       const unite = document.getElementById('c-unit').value;
       const catSel = document.getElementById('c-category').value;
       const categorie = catSel==='__autre__' ? document.getElementById('c-category-autre').value.trim() : catSel;
+      const salleSel = document.getElementById('c-salle').value;
+      const salle = salleSel==='__autre__' ? document.getElementById('c-salle-autre').value.trim() : salleSel;
       if(!nom){
         errEl.textContent = 'Indiquez le nom du matériel.';
         errEl.style.display = 'block';
@@ -2600,7 +2644,7 @@ function attachContentHandlers(){
         return;
       }
       try{
-        await catalogueCol.add({ nom, quantite: qty!==''?Number(qty):null, unite, categorie: categorie||null, updatedAt: Date.now() });
+        await catalogueCol.add({ nom, quantite: qty!==''?Number(qty):null, unite, categorie: categorie||null, salle: salle||null, updatedAt: Date.now() });
         catForm.reset();
       }catch(err){
         errEl.textContent = "L'ajout a échoué. Vérifiez la connexion et réessayez.";
@@ -2613,15 +2657,26 @@ function attachContentHandlers(){
         document.getElementById('c-category-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
       });
     }
+    const catSalleSel = document.getElementById('c-salle');
+    if(catSalleSel){
+      catSalleSel.addEventListener('change', (e)=>{
+        document.getElementById('c-salle-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+      });
+    }
   }
   const catCategoryFilter = document.getElementById('cat-category-filter');
   if(catCategoryFilter){
     catCategoryFilter.addEventListener('change', e=>{ window._catCategoryFilter = e.target.value; render(); });
   }
+  const catSalleFilter = document.getElementById('cat-salle-filter');
+  if(catSalleFilter){
+    catSalleFilter.addEventListener('change', e=>{ window._catSalleFilter = e.target.value; render(); });
+  }
   const catResetFiltersBtn = document.getElementById('cat-reset-filters');
   if(catResetFiltersBtn){
     catResetFiltersBtn.addEventListener('click', ()=>{
       window._catCategoryFilter = 'toutes';
+      window._catSalleFilter = 'toutes';
       window._catSearch = '';
       window._catLowStockOnly = false;
       render();
@@ -2746,10 +2801,12 @@ function attachContentHandlers(){
       const unite = document.getElementById('edit-cat-unit').value.trim();
       const catSel = document.getElementById('edit-cat-category').value;
       const categorie = catSel==='__autre__' ? document.getElementById('edit-cat-category-autre').value.trim() : catSel;
+      const salleSel = document.getElementById('edit-cat-salle').value;
+      const salle = salleSel==='__autre__' ? document.getElementById('edit-cat-salle-autre').value.trim() : salleSel;
       if(!nom){ alert('Indiquez le nom du matériel.'); return; }
       try{
         await catalogueCol.doc(id).update({
-          nom, quantite: qtyRaw!==''?Number(qtyRaw):null, unite, categorie: categorie||null, updatedAt: Date.now()
+          nom, quantite: qtyRaw!==''?Number(qtyRaw):null, unite, categorie: categorie||null, salle: salle||null, updatedAt: Date.now()
         });
         window._catEditingId = null;
       }catch(err){
@@ -2762,6 +2819,12 @@ function attachContentHandlers(){
   if(editCatCategorySel){
     editCatCategorySel.addEventListener('change', e=>{
       document.getElementById('edit-cat-category-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
+    });
+  }
+  const editCatSalleSel = document.getElementById('edit-cat-salle');
+  if(editCatSalleSel){
+    editCatSalleSel.addEventListener('change', e=>{
+      document.getElementById('edit-cat-salle-autre').style.display = e.target.value==='__autre__' ? 'block' : 'none';
     });
   }
 
@@ -2837,6 +2900,26 @@ function attachContentHandlers(){
         render();
       }catch(err){
         alert("Le changement de catégorie a échoué. Vérifiez la connexion et réessayez.");
+      }
+    });
+  }
+  const bulkSalleSel = document.getElementById('cat-bulk-salle');
+  if(bulkSalleSel){
+    bulkSalleSel.addEventListener('change', async e=>{
+      if(e.target.value==='__noop__') return;
+      const selected = window._catSelected || new Set();
+      if(!selected.size) return;
+      const salle = e.target.value || null;
+      try{
+        const batch = db.batch();
+        catalogue.filter(it=>selected.has(it.id)).forEach(it=>{
+          batch.update(catalogueCol.doc(it.id), { salle, updatedAt: Date.now() });
+        });
+        await batch.commit();
+        selected.clear();
+        render();
+      }catch(err){
+        alert("Le changement de salle a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   }
@@ -2951,16 +3034,17 @@ async function importCatalogueRows(rows){
           nom: existing.nom,
           quantite: r.quantite!=null ? r.quantite : existing.quantite,
           unite: r.unite || existing.unite || '',
-          categorie: r.categorie || existing.categorie || null
+          categorie: r.categorie || existing.categorie || null,
+          salle: r.salle || existing.salle || null
         };
         batch.update(catalogueCol.doc(existing.id), {
-          quantite: merged.quantite, unite: merged.unite, categorie: merged.categorie, updatedAt: Date.now()
+          quantite: merged.quantite, unite: merged.unite, categorie: merged.categorie, salle: merged.salle, updatedAt: Date.now()
         });
         existingByName.set(key, merged); // évite de recréer un doublon si le même nom réapparaît plus loin dans l'import
       }else{
         const ref = catalogueCol.doc();
-        const created = { id: ref.id, nom: r.nom, quantite: r.quantite, unite: r.unite||'', categorie: r.categorie||null };
-        batch.set(ref, { nom: created.nom, quantite: created.quantite, unite: created.unite, categorie: created.categorie, updatedAt: Date.now() });
+        const created = { id: ref.id, nom: r.nom, quantite: r.quantite, unite: r.unite||'', categorie: r.categorie||null, salle: r.salle||null };
+        batch.set(ref, { nom: created.nom, quantite: created.quantite, unite: created.unite, categorie: created.categorie, salle: created.salle, updatedAt: Date.now() });
         existingByName.set(key, created); // idem pour un nouvel article dupliqué plusieurs fois dans le même import
       }
     });
@@ -4047,10 +4131,10 @@ function downloadCatalogueCsv(list){
     alert("Aucun article à télécharger avec ces filtres.");
     return;
   }
-  const headers = ['Article','Quantité','Unité','Catégorie'];
+  const headers = ['Article','Quantité','Unité','Catégorie','Salle'];
   const rows = [headers];
   list.forEach(it=>{
-    rows.push([it.nom||'', it.quantite!=null?it.quantite:'', it.unite||'', it.categorie||'']);
+    rows.push([it.nom||'', it.quantite!=null?it.quantite:'', it.unite||'', it.categorie||'', it.salle||'']);
   });
   const csvContent = rows.map(r=>r.map(csvEscape).join(';')).join('\n');
   const blob = new Blob(['\uFEFF' + csvContent], {type:'text/csv;charset=utf-8;'});
