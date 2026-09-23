@@ -3280,8 +3280,8 @@ function openDayModal(iso, showForm){
       if(name) items.push({name, qty: qty?Number(qty):1, unit});
     });
 
-    if(items.length===0){
-      errEl.textContent = 'Ajoutez au moins un élément de matériel.';
+    if(items.length===0 && !notes){
+      errEl.textContent = 'Ajoutez au moins un élément de matériel, ou une remarque.';
       errEl.style.display = 'block';
       return;
     }
@@ -3980,8 +3980,8 @@ function openEditOrderModal(order){
       if(name) items.push({name, qty: qty?Number(qty):1, unit});
     });
 
-    if(items.length===0){
-      errEl.textContent = 'Ajoutez au moins un élément de matériel.';
+    if(items.length===0 && !notes){
+      errEl.textContent = 'Ajoutez au moins un élément de matériel, ou une remarque.';
       errEl.style.display = 'block';
       return;
     }
