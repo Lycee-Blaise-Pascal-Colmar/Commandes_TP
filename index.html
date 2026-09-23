@@ -737,7 +737,7 @@ let unsubscribeProtocoles = null;
 
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
-const CATALOGUE_SALLES = ['Salle 128','Salle 130','Salle 132','Salle 134','Salle 136','Salle 138','Salle 140','Salle 142'];
+const CATALOGUE_SALLES = ['A138','A142'];
 const LOW_STOCK_THRESHOLD = 10;
 const CLASSES = ['1ST2S BPH','1STL Bio-bio','1STL Biotech','Biozone','Enseignement scientifique','Première SVT','Seconde Biotech','Seconde SVT','Terminale SVT','TST2S BPH','TSTL Biotech'];
 const PROFS = ['Fred Lincker','Fred Lanot','Marina','Julien','Anne-Sophie','Catherine','Marie'];
@@ -2121,7 +2121,7 @@ function renderCatalogue(){
       <div class="cat-import">
         <div class="modal-section-label">Importer plusieurs articles d'un coup</div>
         <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité, 4) catégorie, 5) salle</b> — les quatre derniers sont facultatifs. N'insérez pas de colonne supplémentaire entre elles : la 2ᵉ colonne est toujours lue comme la quantité, la 3ᵉ comme l'unité, la 4ᵉ comme la catégorie, la 5ᵉ comme la salle.</div>
-        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie;Salle 128&#10;Bécher 250 mL;12;;Verrerie;Salle 128&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
+        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie;A138&#10;Bécher 250 mL;12;;Verrerie;A138&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
         <div class="cat-import-actions">
           <label class="file-btn">Choisir un fichier
             <input type="file" id="import-file" accept=".csv,.txt" hidden>
