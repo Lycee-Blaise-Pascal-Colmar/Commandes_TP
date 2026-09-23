@@ -750,10 +750,29 @@ function markOrdersSeen(ids){
     if(prepareDot) prepareDot.style.display = orders.some(isOrderNew) ? 'inline-block' : 'none';
   }
 }
-function goToView(view){
-  if(currentView==='prepare' && view!=='prepare'){
-    markOrdersSeen(orders.map(o=>o.id)); // en quittant "À préparer", ces commandes ne sont plus "nouvelles"
+// Le marquage "vu" ne s'applique qu'au clic effectif sur la commande (fiche ou étiquette du calendrier),
+// pas au simple fait d'ouvrir un onglet ou une modale qui la liste.
+document.addEventListener('click', (e)=>{
+  const slip = e.target.closest('.slip[data-id]');
+  if(slip){
+    const id = slip.getAttribute('data-id');
+    if(seenOrderIds && !seenOrderIds.has(id)){
+      markOrdersSeen([id]);
+      slip.classList.remove('slip-new');
+      slip.querySelectorAll('.new-badge').forEach(b=>b.remove());
+    }
   }
+  const tag = e.target.closest('.cal-tag[data-order-id]');
+  if(tag){
+    const id = tag.getAttribute('data-order-id');
+    if(seenOrderIds && !seenOrderIds.has(id)){
+      markOrdersSeen([id]);
+      tag.classList.remove('cal-tag-new');
+      tag.querySelectorAll('.new-dot').forEach(d=>d.remove());
+    }
+  }
+});
+function goToView(view){
   currentView = view;
   setActiveView();
   render();
@@ -2289,7 +2308,7 @@ function renderSlip(o){
   const c = getProfColor(o.prof);
   const isNew = isOrderNew(o);
   return `
-    <div class="slip ${o.prepared?'prepared':''} ${isNew?'slip-new':''}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
+    <div class="slip ${o.prepared?'prepared':''} ${isNew?'slip-new':''}" data-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
       <div class="slip-head">
         <div>
           ${o.titre?`<div class="slip-titre" style="color:${c.text};">${escapeHtml(o.titre)}${isNew?' <span class="new-badge">Nouveau</span>':''}</div>`:(isNew?'<div class="slip-titre"><span class="new-badge">Nouveau</span></div>':'')}
@@ -3107,7 +3126,6 @@ function openDayModal(iso, showForm){
   // (bouton "+"), ou s'il n'y a aucune commande ce jour-là (rien d'autre à montrer).
   const willShowForm = !!showForm || dayOrders.length===0;
   dayModalState = { iso, showForm: willShowForm };
-  const dayHasNew = dayOrders.some(isOrderNew);
   root.innerHTML = `
     <div class="overlay" id="overlay">
       <div class="modal modal-wide" id="order-modal-box">
@@ -3197,8 +3215,6 @@ function openDayModal(iso, showForm){
       </div>
     </div>
   `;
-
-  if(dayHasNew) markOrdersSeen(dayOrders.map(o=>o.id));
 
   const showFormBtn = document.getElementById('show-form-btn');
   if(showFormBtn){
