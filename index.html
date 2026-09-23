@@ -429,10 +429,11 @@
   .slip.prepared .items-list{opacity:0.6;}
   .slip.prepared{box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05), inset 0 0 0 1px var(--teal-dark);}
   .slip{border-left:4px solid var(--border);}
-  .slip-actions{margin-top:10px;display:flex;gap:14px;}
+  .slip-actions{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;}
   .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-faint);padding:0;}
   .slip-actions button:hover{color:var(--rust);}
   .slip-actions button[data-action="duplicate"]:hover{color:var(--teal-dark);}
+  .slip-actions button[data-action="toggle-new"]:hover{color:var(--amber);}
   .empty{text-align:center;padding:56px 20px;color:var(--ink-faint);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.6;}
   .empty::before{
     content:"";display:block;width:38px;height:38px;margin:0 auto 14px;background-color:var(--ink-faint);opacity:.4;
@@ -740,7 +741,7 @@ let planningWeekCursor = mondayOf(todayIso()); // lundi de la semaine affichée 
 // --- Suivi des commandes déjà "ouvertes" (vues), pour mettre en évidence les nouvelles ---
 let seenOrderIds = new Set(JSON.parse(localStorage.getItem('seenOrderIds') || '[]'));
 let seenOrdersInitialized = localStorage.getItem('seenOrderIds') !== null;
-function isOrderNew(o){ return !!o.createdAt && !seenOrderIds.has(o.id); }
+function isOrderNew(o){ return !seenOrderIds.has(o.id); }
 function markOrdersSeen(ids){
   let changed = false;
   (ids||[]).forEach(id=>{ if(!seenOrderIds.has(id)){ seenOrderIds.add(id); changed = true; } });
@@ -750,9 +751,22 @@ function markOrdersSeen(ids){
     if(prepareDot) prepareDot.style.display = orders.some(isOrderNew) ? 'inline-block' : 'none';
   }
 }
+function markOrderAsNew(id){
+  if(seenOrderIds.delete(id)){
+    localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
+  }
+}
 // Le marquage "vu" ne s'applique qu'au clic effectif sur la commande (fiche ou étiquette du calendrier),
 // pas au simple fait d'ouvrir un onglet ou une modale qui la liste.
 document.addEventListener('click', (e)=>{
+  const toggleBtn = e.target.closest('[data-action="toggle-new"]');
+  if(toggleBtn){
+    const id = toggleBtn.getAttribute('data-id');
+    if(seenOrderIds.has(id)) markOrderAsNew(id); else markOrdersSeen([id]);
+    render();
+    if(dayModalState) openDayModal(dayModalState.iso, dayModalState.showForm);
+    return;
+  }
   const slip = e.target.closest('.slip[data-id]');
   if(slip){
     const id = slip.getAttribute('data-id');
@@ -2326,6 +2340,7 @@ function renderSlip(o){
       <div class="slip-actions">
         <button type="button" data-action="edit-order" data-id="${o.id}">modifier</button>
         <button type="button" data-action="duplicate" data-id="${o.id}">dupliquer</button>
+        <button type="button" data-action="toggle-new" data-id="${o.id}">${isNew?'marquer comme lue':'marquer comme nouvelle'}</button>
         <button data-action="delete" data-id="${o.id}">supprimer</button>
       </div>
     </div>`;
@@ -3350,7 +3365,8 @@ function openDayModal(iso, showForm){
         protocoleTitre: protocole ? protocole.titre : null,
         protocoleLien: protocole ? protocole.lien : null
       });
-      openDayModal(iso, true);
+      modalDirty = false;
+      closeModal();
     }catch(err){
       errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
       errEl.style.display = 'block';
