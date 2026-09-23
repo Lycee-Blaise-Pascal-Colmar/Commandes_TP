@@ -2121,7 +2121,7 @@ function renderCatalogue(){
       <div class="cat-import">
         <div class="modal-section-label">Importer plusieurs articles d'un coup</div>
         <div class="cat-import-help">Collez une liste copiée depuis un tableur (Excel, Google Sheets) ou importez un fichier .csv / .txt. Une ligne par article, avec les colonnes <b>dans cet ordre exact : 1) matériel (nom), 2) quantité, 3) unité, 4) catégorie, 5) salle</b> — les quatre derniers sont facultatifs. N'insérez pas de colonne supplémentaire entre elles : la 2ᵉ colonne est toujours lue comme la quantité, la 3ᵉ comme l'unité, la 4ᵉ comme la catégorie, la 5ᵉ comme la salle.</div>
-        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie;A138&#10;Bécher 250 mL;12;;Verrerie;A138&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
+        <textarea id="import-text" rows="5" placeholder="Lame de microscope;50;pièce;Verrerie;A138&#10;Bécher 250 mL;12;pièce;Verrerie;A138&#10;Papier pH">${escapeHtml(importTextValue)}</textarea>
         <div class="cat-import-actions">
           <label class="file-btn">Choisir un fichier
             <input type="file" id="import-file" accept=".csv,.txt" hidden>
