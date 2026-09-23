@@ -270,6 +270,17 @@
   .cal-cell:hover .cal-add-btn{opacity:1;}
   .cal-add-btn:hover{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
   @media (max-width:700px){ .cal-add-btn{opacity:1;top:2px;right:2px;width:16px;height:16px;line-height:14px;font-size:11px;} }
+  .cal-print-btn{
+    position:absolute;top:4px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
+    border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink-soft);
+    font-size:12px;cursor:pointer;padding:0;
+    opacity:0;transition:opacity .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
+    z-index:2;
+  }
+  .cal-print-btn.has-add{right:26px;}
+  .cal-cell:hover .cal-print-btn{opacity:1;}
+  .cal-print-btn:hover{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+  @media (max-width:700px){ .cal-print-btn{opacity:1;top:2px;right:2px;width:16px;height:16px;line-height:14px;font-size:11px;} .cal-print-btn.has-add{right:22px;} }
   .cal-tags{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
   .cal-tag{
     font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:2px 6px;border-radius:4px;
@@ -1401,6 +1412,7 @@ function renderCalendar(){
     html += `
       <div class="cal-cell ${inMonth?'':'other-month'} ${isWeekend?'weekend':''} ${ferie?'ferie':''} ${vacances&&!ferie?'vacances':''} ${iso===today?'today':''} ${isOrderable(iso)?'':'locked'}" data-date="${iso}" title="${ferie?escapeHtml(ferie):(vacances?escapeHtml(vacances.label):'')}">
         ${isOrderable(iso)?`<button type="button" class="cal-add-btn" data-date="${iso}" title="Déposer une commande ce jour">+</button>`:''}
+        ${dayOrders.length?`<button type="button" class="cal-print-btn ${isOrderable(iso)?'has-add':''}" data-date="${iso}" title="Imprimer cette journée">🖶</button>`:''}
         <div class="cal-daynum">${d.getDate()}${dayOrders.length?`<span class="cal-badge">${dayOrders.length}</span>`:''}</div>
         ${ferie?`<div class="cal-ferie-label">${escapeHtml(ferie)}</div>`:(vacances?`<div class="cal-vacances-label">${escapeHtml(vacances.label.replace('Vacances de la ','').replace('Vacances de ','').replace("Vacances d'",''))}</div>`:'')}
         <div class="cal-tags">
@@ -2388,6 +2400,13 @@ function attachContentHandlers(){
         return;
       }
       openDayModal(iso, true);
+    });
+  });
+  document.querySelectorAll('.cal-print-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const iso = btn.getAttribute('data-date');
+      printDay(iso);
     });
   });
   document.querySelectorAll('.cal-tag[draggable="true"]').forEach(tag=>{
