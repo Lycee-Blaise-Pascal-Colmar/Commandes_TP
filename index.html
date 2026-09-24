@@ -173,19 +173,15 @@
   }
   .agenda-month-nav button:hover:not(:disabled){border-color:var(--teal);background:var(--teal-pale);}
   .agenda-month-nav button:disabled{opacity:0.35;cursor:default;}
-  .view-toggle{display:flex;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;gap:2px;flex-wrap:wrap;box-shadow:var(--shadow-sm);}
+  .view-toggle{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;gap:2px;flex-wrap:wrap;box-shadow:var(--shadow-sm);}
   .view-toggle button{
     font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;background:none;
     border:none;border-radius:var(--r-sm);padding:8px 14px;cursor:pointer;color:var(--ink-soft);transition:background .15s ease,color .15s ease,box-shadow .15s ease;
     display:inline-flex;align-items:center;gap:7px;
   }
   .nav-icon{width:15px;height:15px;flex:none;}
-  .view-toggle button:hover:not(.active){background:var(--surface);color:var(--ink);}
+  .view-toggle button:hover:not(.active){background:var(--paper);color:var(--ink);}
   .view-toggle button.active{background:var(--teal-dark);color:#fff;box-shadow:var(--shadow-sm);}
-  .view-toggle button.has-new{box-shadow:inset 0 0 0 2px var(--amber);}
-  .view-toggle button.active.has-new{box-shadow:inset 0 0 0 2px var(--amber), var(--shadow-sm);}
-  .new-badge{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--amber);color:#fff;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle;}
-  .slip.slip-new{box-shadow:0 0 0 2px var(--amber), var(--shadow-sm);}
 
   /* Calendar */
   .cal-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1.35fr)) repeat(2,minmax(0,0.5fr));
@@ -292,8 +288,6 @@
     background:var(--teal-pale);color:var(--teal-dark);
   }
   .cal-tag.prepared{opacity:.55;text-decoration:line-through;}
-  .cal-tag.cal-tag-new{box-shadow:0 0 0 1.5px var(--amber);}
-  .new-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-right:4px;vertical-align:middle;}
   .cal-more{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:2px;}
 
   @media (max-width:700px){
@@ -429,11 +423,10 @@
   .slip.prepared .items-list{opacity:0.6;}
   .slip.prepared{box-shadow:0 1px 2px rgba(30,43,36,0.06), 0 5px 12px rgba(30,43,36,0.05), inset 0 0 0 1px var(--teal-dark);}
   .slip{border-left:4px solid var(--border);}
-  .slip-actions{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;}
+  .slip-actions{margin-top:10px;display:flex;gap:14px;}
   .slip-actions button{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-faint);padding:0;}
   .slip-actions button:hover{color:var(--rust);}
   .slip-actions button[data-action="duplicate"]:hover{color:var(--teal-dark);}
-  .slip-actions button[data-action="toggle-new"]:hover{color:var(--amber);}
   .empty{text-align:center;padding:56px 20px;color:var(--ink-faint);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.6;}
   .empty::before{
     content:"";display:block;width:38px;height:38px;margin:0 auto 14px;background-color:var(--ink-faint);opacity:.4;
@@ -632,7 +625,7 @@
     <h2>Connexion</h2>
     <p class="login-sub">Connectez-vous avec l'identifiant de l'équipe pour accéder à l'agenda.</p>
     <label>Identifiant</label>
-    <input type="email" id="login-email" autocomplete="username" required>
+    <input type="email" id="login-email" value="commande@labosvtstl.fr" autocomplete="username" required>
     <label>Mot de passe</label>
     <input type="password" id="login-password" autocomplete="current-password" required>
     <div class="err" id="login-err" style="display:none;"></div>
@@ -737,60 +730,6 @@ let importPreviewRows = null;
 let cursor = new Date(); cursor.setDate(1);
 let prepareCursor = mondayOf(todayIso()); // lundi de la semaine affichée dans "À préparer"
 let planningWeekCursor = mondayOf(todayIso()); // lundi de la semaine affichée dans "Planning salles"
-
-// --- Suivi des commandes déjà "ouvertes" (vues), pour mettre en évidence les nouvelles ---
-let seenOrderIds = new Set(JSON.parse(localStorage.getItem('seenOrderIds') || '[]'));
-let seenOrdersInitialized = localStorage.getItem('seenOrderIds') !== null;
-function isOrderNew(o){ return !seenOrderIds.has(o.id); }
-function markOrdersSeen(ids){
-  let changed = false;
-  (ids||[]).forEach(id=>{ if(!seenOrderIds.has(id)){ seenOrderIds.add(id); changed = true; } });
-  if(changed){
-    localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
-    const prepareBtn = document.getElementById('view-prepare');
-    if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
-  }
-}
-function markOrderAsNew(id){
-  if(seenOrderIds.delete(id)){
-    localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
-  }
-}
-// Le marquage "vu" ne s'applique qu'au clic effectif sur la commande (fiche ou étiquette du calendrier),
-// pas au simple fait d'ouvrir un onglet ou une modale qui la liste.
-document.addEventListener('click', (e)=>{
-  const toggleBtn = e.target.closest('[data-action="toggle-new"]');
-  if(toggleBtn){
-    const id = toggleBtn.getAttribute('data-id');
-    if(seenOrderIds.has(id)) markOrderAsNew(id); else markOrdersSeen([id]);
-    render();
-    if(dayModalState) openDayModal(dayModalState.iso, dayModalState.showForm);
-    return;
-  }
-  const slip = e.target.closest('.slip[data-id]');
-  if(slip){
-    const id = slip.getAttribute('data-id');
-    if(seenOrderIds && !seenOrderIds.has(id)){
-      markOrdersSeen([id]);
-      slip.classList.remove('slip-new');
-      slip.querySelectorAll('.new-badge').forEach(b=>b.remove());
-    }
-  }
-  const tag = e.target.closest('.cal-tag[data-order-id]');
-  if(tag){
-    const id = tag.getAttribute('data-order-id');
-    if(seenOrderIds && !seenOrderIds.has(id)){
-      markOrdersSeen([id]);
-      tag.classList.remove('cal-tag-new');
-      tag.querySelectorAll('.new-dot').forEach(d=>d.remove());
-    }
-  }
-});
-function goToView(view){
-  currentView = view;
-  setActiveView();
-  render();
-}
 let planningDayCursor = todayIso(); // jour sélectionné dans cette semaine
 let unsubscribeOrders = null;
 let unsubscribeCatalogue = null;
@@ -957,12 +896,6 @@ function connectRealtime(){
       const all = snap.docs.map(d=>({ id:d.id, ...d.data() }));
       orders = all.filter(o=>!o.supprime);
       ordersTrash = all.filter(o=>o.supprime);
-      if(!seenOrdersInitialized){
-        const cutoff = Date.now() - 5*60*1000; // 5 min : on ne présume "déjà vues" que les commandes un peu anciennes
-        all.forEach(o=>{ if(!o.createdAt || o.createdAt < cutoff) seenOrderIds.add(o.id); });
-        localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
-        seenOrdersInitialized = true;
-      }
       statusEl.textContent = 'Connecté — mise à jour en temps réel';
       statusEl.className = 'conn-status ok';
       render();
@@ -1440,8 +1373,6 @@ function openMonthPicker(){
 }
 
 function render(){
-  const prepareBtn = document.getElementById('view-prepare');
-  if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
   document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
@@ -1494,8 +1425,7 @@ function renderCalendar(){
         <div class="cal-tags">
           ${shown.map(o=>{
             const c = getProfColor(o.prof);
-            const isNew = isOrderNew(o);
-            return `<div class="cal-tag ${o.prepared?'prepared':''} ${isNew?'cal-tag-new':''}" draggable="true" data-order-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${isNew?'<span class="new-dot"></span>':''}${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
+            return `<div class="cal-tag ${o.prepared?'prepared':''}" draggable="true" data-order-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">${o.prepared?'✓ ':''}${o.horaire?escapeHtml(o.horaire)+' · ':''}${escapeHtml(o.prof)}</div>`;
           }).join('')}
           ${extra>0?`<div class="cal-more">+${extra}</div>`:''}
         </div>
@@ -1670,7 +1600,6 @@ function renderPrepare(){
   const list = orders.filter(o=> o.date>=weekStart && o.date<=weekEnd).sort((a,b)=>a.date.localeCompare(b.date));
   window._prepareCurrentList = list;
   const remaining = list.filter(o=>!o.prepared).length;
-  const newCount = orders.filter(isOrderNew).length;
 
   let header = `
     <div class="agenda-filters prepare-nav">
@@ -1680,7 +1609,7 @@ function renderPrepare(){
         ${!isCurrentWeek ? '<button type="button" id="prepare-today-week" class="link-btn">revenir à cette semaine</button>' : ''}
       </div>
       <button type="button" id="prepare-next-week" title="Semaine suivante">›</button>
-      <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine${newCount?` · <span class="new-badge">${newCount} nouvelle${newCount!==1?'s':''}</span>`:''}</div>
+      <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine</div>
       <button type="button" class="download-btn" id="print-prepare-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer cette semaine</button>
       <button type="button" class="download-btn" id="pdf-prepare-btn" style="background:var(--teal);border-color:var(--teal);">⬇ PDF</button>
     </div>`;
@@ -2320,12 +2249,11 @@ function renderImportPreview(rows){
 function renderSlip(o){
   const itemsHtml = (o.items||[]).map(it=>`<li><span>${escapeHtml(it.name)}</span><span class="qty">${it.qty} ${escapeHtml(it.unit)}</span></li>`).join('');
   const c = getProfColor(o.prof);
-  const isNew = isOrderNew(o);
   return `
-    <div class="slip ${o.prepared?'prepared':''} ${isNew?'slip-new':''}" data-id="${o.id}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
+    <div class="slip ${o.prepared?'prepared':''}" style="border-left-color:${c.border};background:${c.bg};${profVarsCss(c)}">
       <div class="slip-head">
         <div>
-          ${o.titre?`<div class="slip-titre" style="color:${c.text};">${escapeHtml(o.titre)}${isNew?' <span class="new-badge">Nouveau</span>':''}</div>`:(isNew?'<div class="slip-titre"><span class="new-badge">Nouveau</span></div>':'')}
+          ${o.titre?`<div class="slip-titre" style="color:${c.text};">${escapeHtml(o.titre)}</div>`:''}
           <div class="slip-date" style="color:${c.text};">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
           <div class="slip-meta"><b style="color:${c.text};">${escapeHtml(o.prof)}</b>${o.classe?' · '+escapeHtml(o.classe):''}${o.salle?' · Salle '+escapeHtml(o.salle):''}</div>
         </div>
@@ -2340,7 +2268,6 @@ function renderSlip(o){
       <div class="slip-actions">
         <button type="button" data-action="edit-order" data-id="${o.id}">modifier</button>
         <button type="button" data-action="duplicate" data-id="${o.id}">dupliquer</button>
-        <button type="button" data-action="toggle-new" data-id="${o.id}">${isNew?'marquer comme lue':'marquer comme nouvelle'}</button>
         <button data-action="delete" data-id="${o.id}">supprimer</button>
       </div>
     </div>`;
@@ -3365,8 +3292,7 @@ function openDayModal(iso, showForm){
         protocoleTitre: protocole ? protocole.titre : null,
         protocoleLien: protocole ? protocole.lien : null
       });
-      modalDirty = false;
-      closeModal();
+      openDayModal(iso, true);
     }catch(err){
       errEl.textContent = "L'enregistrement a échoué. Vérifiez la connexion et réessayez.";
       errEl.style.display = 'block';
@@ -3898,7 +3824,6 @@ function openDuplicateModal(order){
 
 function openEditOrderModal(order){
   dayModalState = null;
-  if(isOrderNew(order)){ markOrdersSeen([order.id]); render(); }
   const root = document.getElementById('modal-root');
   const profInList = PROFS_SORTED.includes(order.prof);
   const classeInList = order.classe ? CLASSES_SORTED.includes(order.classe) : true;
@@ -4256,15 +4181,15 @@ document.getElementById('month-title').addEventListener('click', e=>{
   if(pop.style.display==='block') closeMonthPicker(); else openMonthPicker();
 });
 document.getElementById('print-week-btn').addEventListener('click', ()=> openPrintWeekModal());
-document.getElementById('view-cal').addEventListener('click', ()=>{ goToView('cal'); });
-document.getElementById('view-prepare').addEventListener('click', ()=>{ goToView('prepare'); });
-document.getElementById('view-agenda').addEventListener('click', ()=>{ goToView('agenda'); });
-document.getElementById('view-recherche').addEventListener('click', ()=>{ goToView('recherche'); });
-document.getElementById('view-catalogue').addEventListener('click', ()=>{ goToView('catalogue'); });
-document.getElementById('view-protocoles').addEventListener('click', ()=>{ goToView('protocoles'); });
-document.getElementById('view-stats').addEventListener('click', ()=>{ goToView('stats'); });
-document.getElementById('view-planning').addEventListener('click', ()=>{ goToView('planning'); });
-document.getElementById('view-corbeille').addEventListener('click', ()=>{ goToView('corbeille'); });
+document.getElementById('view-cal').addEventListener('click', ()=>{ currentView='cal'; setActiveView(); render(); });
+document.getElementById('view-prepare').addEventListener('click', ()=>{ currentView='prepare'; setActiveView(); render(); });
+document.getElementById('view-agenda').addEventListener('click', ()=>{ currentView='agenda'; setActiveView(); render(); });
+document.getElementById('view-recherche').addEventListener('click', ()=>{ currentView='recherche'; setActiveView(); render(); });
+document.getElementById('view-catalogue').addEventListener('click', ()=>{ currentView='catalogue'; setActiveView(); render(); });
+document.getElementById('view-protocoles').addEventListener('click', ()=>{ currentView='protocoles'; setActiveView(); render(); });
+document.getElementById('view-stats').addEventListener('click', ()=>{ currentView='stats'; setActiveView(); render(); });
+document.getElementById('view-planning').addEventListener('click', ()=>{ currentView='planning'; setActiveView(); render(); });
+document.getElementById('view-corbeille').addEventListener('click', ()=>{ currentView='corbeille'; setActiveView(); render(); });
 
 function setActiveView(){
   document.getElementById('view-cal').classList.toggle('active', currentView==='cal');
