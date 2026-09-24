@@ -172,7 +172,6 @@
   .cal-cell.weekend{background:var(--paper);}
   .cal-cell.weekend .cal-daynum{color:var(--ink-faint);}
   .cal-cell.vacances{background:var(--vacances-bg);}
-  .cal-cell.vacances::after{content:"";position:absolute;top:8px;left:8px;width:6px;height:6px;border-radius:50%;background:var(--vacances-ink);opacity:.75;}
   .cal-cell.ferie{background:var(--amber-pale);}
   .cal-cell.ferie .cal-daynum{color:var(--amber);}
   .cal-cell.today{box-shadow:none;}
@@ -2457,10 +2456,6 @@ function attachContentHandlers(){
     cell.addEventListener('click', ()=>{
       hideOrderTooltip();
       const iso = cell.getAttribute('data-date');
-      if(!isOrderable(iso)){
-        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
-        return;
-      }
       openDayModal(iso, false);
     });
   });
@@ -3096,8 +3091,13 @@ function openDayModal(iso, showForm){
   const dayNote = ferie ? `<span style="color:var(--amber);font-weight:600;"> — ${escapeHtml(ferie)} (férié)</span>`
     : vacances ? `<span style="color:var(--ink-faint);font-weight:400;"> — ${escapeHtml(vacances.label)}</span>` : '';
   // On n'affiche le formulaire de dépôt d'emblée que si on l'a demandé explicitement
-  // (bouton "+"), ou s'il n'y a aucune commande ce jour-là (rien d'autre à montrer).
-  const willShowForm = !!showForm || dayOrders.length===0;
+  // (bouton "+"), ou s'il n'y a aucune commande ce jour-là (rien d'autre à montrer) —
+  // et dans tous les cas seulement si ce jour est encore ouvert au dépôt.
+  const orderable = isOrderable(iso);
+  const willShowForm = orderable && (!!showForm || dayOrders.length===0);
+  const lockedNotice = (!orderable && dayOrders.length===0)
+    ? `<p style="color:var(--ink-faint);font-size:13.5px;margin-top:10px;">Aucune commande ce jour-là. Le dépôt n'est plus possible (jour passé ou à moins de ${MIN_LEAD_DAYS} jours ouvrés).</p>`
+    : '';
   dayModalState = { iso, showForm: willShowForm };
   root.innerHTML = `
     <div class="overlay" id="overlay">
@@ -3111,7 +3111,8 @@ function openDayModal(iso, showForm){
         ${dayOrders.length ? `<div class="modal-section-label">Commandes déjà déposées</div>${dayOrders.map(renderSlip).join('')}` : ''}
         ${dayOrders.length ? `<button type="button" class="add-item-btn" id="print-day-btn">🖶 Imprimer cette journée</button><button type="button" class="add-item-btn" id="pdf-day-btn">⬇ PDF</button>` : ''}
 
-        ${willShowForm ? '' : `<button type="button" class="submit-btn" id="show-form-btn" style="margin-top:14px;">+ Déposer une commande</button>`}
+        ${lockedNotice}
+        ${willShowForm ? '' : (orderable ? '<button type="button" class="submit-btn" id="show-form-btn" style="margin-top:14px;">+ Déposer une commande</button>' : '')}
         <div id="order-form-wrap" style="display:${willShowForm?'block':'none'};">
         <div class="modal-section-label">Déposer une commande</div>
         <form id="order-form">
