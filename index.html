@@ -4,15 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda des commandes TP — SVT/STL</title>
-<script>
-  (function(){
-    try{
-      var saved = localStorage.getItem('agenda-tp-theme');
-      var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      if(theme === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); }
-    }catch(e){}
-  })();
-</script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F4A40'/%3E%3Cg fill='none' stroke='%23EDEFE9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 5h6'/%3E%3Cpath d='M14 5v7.8L7.8 24.6c-.7 1.2.2 2.7 1.6 2.7h13.2c1.4 0 2.3-1.5 1.6-2.7L18 12.8V5'/%3E%3Cpath d='M10.5 19.5h11'/%3E%3C/g%3E%3Ccircle cx='19.5' cy='22.5' r='1.1' fill='%23EDEFE9'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,20 +12,13 @@
     --paper:#E4F0E7; --paper-line:#CBDECF; --ink:#1E2B24; --ink-soft:#5B6858; --ink-faint:#93998A;
     --card:#F1F8F3; --surface:#ffffff; --teal:#2F6B5E; --teal-dark:#1F4A40; --teal-pale:#E3EEEA;
     --amber:#B9791E; --amber-pale:#F6EBD4; --rust:#A6452F; --rust-pale:#F4E1D9; --border:#BFD6C5;
+    --new-accent:#B9691A; --new-accent-text:#ffffff;
+    --vacances-bg:#C9E1CE; --vacances-ink:#2F5A45;
     --shadow-color:30,43,36;
     --shadow-sm:0 1px 2px rgba(var(--shadow-color),0.05), 0 2px 6px rgba(var(--shadow-color),0.05);
     --shadow-md:0 2px 4px rgba(var(--shadow-color),0.04), 0 10px 24px rgba(var(--shadow-color),0.08);
     --shadow-lg:0 8px 16px rgba(var(--shadow-color),0.08), 0 24px 48px rgba(var(--shadow-color),0.14);
     --r-sm:8px; --r-md:12px; --r-lg:18px;
-  }
-  html[data-theme="dark"]{
-    --paper:#1B211C; --paper-line:#2A322B; --ink:#EDF0E8; --ink-soft:#AEB8A6; --ink-faint:#77816F;
-    --card:#242B25; --surface:#2A322B; --teal:#5AA292; --teal-dark:#4E9384; --teal-pale:#2E3B34;
-    --amber:#DFAE66; --amber-pale:#3A3121; --rust:#E28B6C; --rust-pale:#3B2620; --border:#38412F;
-    --shadow-color:0,0,0;
-  }
-  html[data-theme="dark"] .modal, html[data-theme="dark"] .login-box{
-    box-shadow:var(--shadow-lg);
   }
   ::selection{background:var(--teal-pale);color:var(--teal-dark);}
   :focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
@@ -81,23 +65,6 @@
     text-decoration:none;transition:background .15s ease,color .15s ease,border-color .15s ease;
   }
   .top-action-btn:hover{color:var(--teal-dark);background:var(--teal-pale);}
-  .theme-switch{
-    display:inline-flex;align-items:center;gap:8px;background:none;border:none;padding:4px 6px;
-    cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink-soft);
-    border-radius:var(--r-sm);transition:background .15s ease,color .15s ease;
-  }
-  .theme-switch:hover{color:var(--teal-dark);background:var(--teal-pale);}
-  .theme-switch-track{
-    width:36px;height:20px;background:var(--border);border-radius:999px;position:relative;flex:none;
-    transition:background .2s ease;
-  }
-  .theme-switch-thumb{
-    position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);
-    box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;
-    transition:transform .2s ease;
-  }
-  html[data-theme="dark"] .theme-switch-track{background:var(--teal-dark);}
-  html[data-theme="dark"] .theme-switch-thumb{transform:translateX(16px);}
 
   .login-screen{
     min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;
@@ -182,10 +149,10 @@
   .nav-icon{width:15px;height:15px;flex:none;}
   .view-toggle button:hover:not(.active){background:var(--surface);color:var(--ink);}
   .view-toggle button.active{background:var(--teal-dark);color:#fff;box-shadow:var(--shadow-sm);}
-  .view-toggle button.has-new{box-shadow:inset 0 0 0 2px var(--amber);}
-  .view-toggle button.active.has-new{box-shadow:inset 0 0 0 2px var(--amber), var(--shadow-sm);}
-  .new-badge{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--amber);color:#fff;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle;}
-  .slip.slip-new{box-shadow:0 0 0 2px var(--amber), var(--shadow-sm);}
+  .view-toggle button.has-new{box-shadow:inset 0 0 0 2px var(--new-accent);}
+  .view-toggle button.active.has-new{box-shadow:inset 0 0 0 2px var(--new-accent), var(--shadow-sm);}
+  .new-badge{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--new-accent);color:var(--new-accent-text);font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle;}
+  .slip.slip-new{box-shadow:0 0 0 2px var(--new-accent), var(--shadow-sm);}
 
   /* Calendar */
   .cal-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1.35fr)) repeat(2,minmax(0,0.5fr));
@@ -204,8 +171,8 @@
   .cal-cell.other-month{background:var(--paper);color:var(--ink-faint);}
   .cal-cell.weekend{background:var(--paper);}
   .cal-cell.weekend .cal-daynum{color:var(--ink-faint);}
-  .cal-cell.vacances{background:var(--paper);}
-  .cal-cell.vacances::after{content:"";position:absolute;top:8px;left:8px;width:5px;height:5px;border-radius:50%;background:var(--ink-faint);opacity:.5;}
+  .cal-cell.vacances{background:var(--vacances-bg);}
+  .cal-cell.vacances::after{content:"";position:absolute;top:8px;left:8px;width:6px;height:6px;border-radius:50%;background:var(--vacances-ink);opacity:.75;}
   .cal-cell.ferie{background:var(--amber-pale);}
   .cal-cell.ferie .cal-daynum{color:var(--amber);}
   .cal-cell.today{box-shadow:none;}
@@ -214,7 +181,7 @@
     width:24px;height:24px;border-radius:50%;
   }
   .cal-ferie-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber);font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .cal-vacances-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.03em;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cal-vacances-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--vacances-ink);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cal-cell.locked{
     background:repeating-linear-gradient(135deg, var(--paper) 0px, var(--paper) 6px, var(--paper-line) 6px, var(--paper-line) 7px);
   }
@@ -292,8 +259,8 @@
     background:var(--teal-pale);color:var(--teal-dark);
   }
   .cal-tag.prepared{opacity:.55;text-decoration:line-through;}
-  .cal-tag.cal-tag-new{box-shadow:0 0 0 1.5px var(--amber);}
-  .new-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-right:4px;vertical-align:middle;}
+  .cal-tag.cal-tag-new{box-shadow:0 0 0 1.5px var(--new-accent);}
+  .new-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--new-accent);margin-right:4px;vertical-align:middle;}
   .cal-more{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-top:2px;}
 
   @media (max-width:700px){
@@ -624,10 +591,6 @@
 </head>
 <body>
 <div id="login-screen" class="login-screen">
-  <button id="theme-toggle-btn-login" class="theme-switch" type="button" title="Basculer entre thème clair et sombre" style="position:absolute;top:20px;right:20px;">
-    <span class="theme-switch-track"><span class="theme-switch-thumb" id="theme-thumb-login">🌙</span></span>
-    <span id="theme-label-login">Mode sombre</span>
-  </button>
   <form id="login-form" class="login-box">
     <h2>Connexion</h2>
     <p class="login-sub">Connectez-vous avec l'identifiant de l'équipe pour accéder à l'agenda.</p>
@@ -651,12 +614,7 @@
         <circle cx="13.8" cy="22.6" r="0.7" fill="currentColor"/>
       </svg>
       <div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <h1>Agenda des commandes — TP SVT/STL</h1>
-          <button id="theme-toggle-btn" class="theme-switch" type="button" title="Basculer entre thème clair et sombre">
-            <span class="theme-switch-track"><span class="theme-switch-thumb" id="theme-thumb-header">🌙</span></span>
-          </button>
-        </div>
+        <h1>Agenda des commandes — TP SVT/STL</h1>
         <div class="sub">Cliquez sur un jour pour déposer une commande de matériel</div>
       </div>
     </div>
@@ -4327,31 +4285,6 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
     submitBtn.textContent = 'Se connecter';
   }
 });
-
-// --- Thème sombre ---------------------------------------------------
-function updateThemeButtons(){
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const thumb1 = document.getElementById('theme-thumb-header');
-  const thumb2 = document.getElementById('theme-thumb-login');
-  const label2 = document.getElementById('theme-label-login');
-  if(thumb1) thumb1.textContent = isDark ? '☀️' : '🌙';
-  if(thumb2) thumb2.textContent = isDark ? '☀️' : '🌙';
-  if(label2) label2.textContent = isDark ? 'Mode clair' : 'Mode sombre';
-}
-function toggleTheme(){
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  if(isDark){
-    document.documentElement.removeAttribute('data-theme');
-    try{ localStorage.setItem('agenda-tp-theme', 'light'); }catch(e){}
-  }else{
-    document.documentElement.setAttribute('data-theme', 'dark');
-    try{ localStorage.setItem('agenda-tp-theme', 'dark'); }catch(e){}
-  }
-  updateThemeButtons();
-}
-document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
-document.getElementById('theme-toggle-btn-login').addEventListener('click', toggleTheme);
-updateThemeButtons();
 
 document.getElementById('backup-btn').addEventListener('click', ()=> downloadFullBackup());
 
