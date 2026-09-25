@@ -104,6 +104,8 @@
   .prof-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
   .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
   .month-nav{display:flex;align-items:center;gap:8px;}
+  .today-summary{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;padding:0 2px;}
+  .today-summary b{color:var(--teal-dark);font-weight:600;}
   .month-nav button{
     font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--surface);
     border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 13px;cursor:pointer;color:var(--ink);
@@ -424,6 +426,20 @@
   }
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes riseIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  /* Boîtes de dialogue (remplacent les alert()/confirm() natifs) */
+  .confirm-overlay{position:fixed;inset:0;background:rgba(20,28,23,0.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;animation:fadeIn .12s ease;}
+  .confirm-box{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:var(--r-lg);max-width:420px;width:100%;padding:22px 24px;box-shadow:var(--shadow-lg);animation:riseIn .15s ease;}
+  .confirm-message{font-family:'IBM Plex Sans',sans-serif;font-size:14.5px;line-height:1.55;color:var(--ink);margin:0 0 20px;white-space:pre-line;}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+  .confirm-btn{font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600;padding:9px 16px;border-radius:var(--r-sm);border:none;cursor:pointer;transition:background .15s ease,transform .1s ease;}
+  .confirm-btn:hover{transform:translateY(-1px);}
+  .confirm-btn-cancel{background:var(--card);color:var(--ink-soft);border:1px solid var(--border);}
+  .confirm-btn-cancel:hover{background:var(--paper);color:var(--ink);}
+  .confirm-btn-primary{background:var(--teal-dark);color:#fff;}
+  .confirm-btn-primary:hover{background:var(--teal);}
+  .confirm-btn-danger{background:var(--rust);color:#fff;}
+  .confirm-btn-danger:hover{background:#8a3520;}
   .modal h2{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;margin:0 0 4px;text-transform:capitalize;}
   .modal-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:14px;}
   .close-btn{background:none;border:none;font-size:19px;cursor:pointer;color:var(--ink-faint);line-height:1;}
@@ -634,6 +650,7 @@
       <button id="next-month">›</button>
       <button id="today-btn">Aujourd'hui</button>
       <button id="print-week-btn" class="download-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer une semaine</button>
+      <div id="today-summary" class="today-summary"></div>
     </div>
     <div class="view-toggle">
       <button id="view-cal" class="active"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg>Calendrier</button>
@@ -652,6 +669,7 @@
 </div>
 
 <div id="modal-root"></div>
+<div id="confirm-root"></div>
 <div id="print-area"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -659,6 +677,52 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script>
+/* =========================================================================
+   0) BOÎTES DE DIALOGUE — remplacent les alert()/confirm() natifs du navigateur
+   ========================================================================= */
+function showDialog({message, buttons}){
+  return new Promise(resolve=>{
+    const root = document.getElementById('confirm-root');
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-box" role="alertdialog" aria-modal="true">
+        <p class="confirm-message"></p>
+        <div class="confirm-actions">
+          ${buttons.map((b,i)=>`<button type="button" class="confirm-btn ${b.danger?'confirm-btn-danger':(b.primary?'confirm-btn-primary':'confirm-btn-cancel')}" data-idx="${i}"></button>`).join('')}
+        </div>
+      </div>`;
+    overlay.querySelector('.confirm-message').textContent = message;
+    overlay.querySelectorAll('.confirm-btn').forEach((btn,i)=>{ btn.textContent = buttons[i].label; });
+    root.appendChild(overlay);
+    function cleanup(val){
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    }
+    overlay.querySelectorAll('.confirm-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> cleanup(buttons[+btn.getAttribute('data-idx')].value));
+    });
+    overlay.addEventListener('mousedown', e=>{ if(e.target===overlay) cleanup(buttons[0].value); });
+    function onKey(e){
+      if(e.key==='Escape') cleanup(buttons[0].value);
+      if(e.key==='Enter'){ const last = overlay.querySelectorAll('.confirm-btn'); if(last.length) cleanup(buttons[last.length-1].value); }
+    }
+    document.addEventListener('keydown', onKey);
+    const focusBtn = overlay.querySelector('.confirm-btn-danger, .confirm-btn-primary') || overlay.querySelector('.confirm-btn');
+    if(focusBtn) focusBtn.focus();
+  });
+}
+function customAlert(message){
+  return showDialog({message, buttons:[{label:'OK', value:true, primary:true}]});
+}
+function customConfirm(message, opts={}){
+  return showDialog({message, buttons:[
+    {label: opts.cancelLabel || 'Annuler', value:false},
+    {label: opts.confirmLabel || (opts.danger?'Supprimer':'Confirmer'), value:true, danger:!!opts.danger}
+  ]});
+}
+
 /* =========================================================================
    1) CONFIGURATION FIREBASE — À REMPLIR
    Remplacez les valeurs ci-dessous par celles de votre projet Firebase
@@ -1060,7 +1124,7 @@ async function moveOrderToDate(order, newIso){
     });
   }catch(err){
     console.error(err);
-    alert("Le déplacement de la commande a échoué. Vérifiez la connexion et réessayez.");
+    customAlert("Le déplacement de la commande a échoué. Vérifiez la connexion et réessayez.");
   }
 }
 
@@ -1075,7 +1139,7 @@ async function duplicateOrderToDate(order, newIso){
     });
   }catch(err){
     console.error(err);
-    alert("La duplication de la commande a échoué. Vérifiez la connexion et réessayez.");
+    customAlert("La duplication de la commande a échoué. Vérifiez la connexion et réessayez.");
   }
 }
 
@@ -1083,7 +1147,7 @@ async function duplicateOrderToDate(order, newIso){
 async function deleteOrderAndRestoreStock(order){
   if(!order.stockDeducted){
     try{ await ordersCol.doc(order.id).delete(); }
-    catch(err){ console.error(err); alert("La suppression a échoué. Réessayez."); }
+    catch(err){ console.error(err); customAlert("La suppression a échoué. Réessayez."); }
     return;
   }
   const itemRefs = resolveItemRefs(order.items);
@@ -1100,7 +1164,7 @@ async function deleteOrderAndRestoreStock(order){
     });
   }catch(err){
     console.error(err);
-    alert("La suppression a échoué. Réessayez.");
+    customAlert("La suppression a échoué. Réessayez.");
   }
 }
 async function emptyTrash(){
@@ -1110,34 +1174,34 @@ async function emptyTrash(){
     for(const p of [...protocolesTrash]) await protocolesCol.doc(p.id).delete();
   }catch(err){
     console.error(err);
-    alert("Le vidage de la corbeille a échoué. Réessayez : " + (err && err.message ? err.message : err));
+    customAlert("Le vidage de la corbeille a échoué. Réessayez : " + (err && err.message ? err.message : err));
   }
 }
 // --- Corbeille : suppression douce (réversible) — le stock n'est PAS restitué tant que
 // l'élément n'est pas purgé définitivement (voir purgeExpiredTrash / deleteOrderAndRestoreStock).
 async function softDeleteOrder(order){
   try{ await ordersCol.doc(order.id).update({ supprime:true, supprimeLe: Date.now() }); }
-  catch(err){ console.error(err); alert("La mise à la corbeille a échoué. Réessayez."); }
+  catch(err){ console.error(err); customAlert("La mise à la corbeille a échoué. Réessayez."); }
 }
 async function restoreOrder(order){
   try{ await ordersCol.doc(order.id).update({ supprime:false, supprimeLe: null }); }
-  catch(err){ console.error(err); alert("La restauration a échoué. Réessayez."); }
+  catch(err){ console.error(err); customAlert("La restauration a échoué. Réessayez."); }
 }
 async function softDeleteCatalogueItem(it){
   try{ await catalogueCol.doc(it.id).update({ supprime:true, supprimeLe: Date.now() }); }
-  catch(err){ console.error(err); alert("La mise à la corbeille a échoué. Réessayez."); }
+  catch(err){ console.error(err); customAlert("La mise à la corbeille a échoué. Réessayez."); }
 }
 async function restoreCatalogueItem(it){
   try{ await catalogueCol.doc(it.id).update({ supprime:false, supprimeLe: null }); }
-  catch(err){ console.error(err); alert("La restauration a échoué. Réessayez."); }
+  catch(err){ console.error(err); customAlert("La restauration a échoué. Réessayez."); }
 }
 async function softDeleteProtocole(p){
   try{ await protocolesCol.doc(p.id).update({ supprime:true, supprimeLe: Date.now() }); }
-  catch(err){ console.error(err); alert("La mise à la corbeille a échoué. Réessayez."); }
+  catch(err){ console.error(err); customAlert("La mise à la corbeille a échoué. Réessayez."); }
 }
 async function restoreProtocole(p){
   try{ await protocolesCol.doc(p.id).update({ supprime:false, supprimeLe: null }); }
-  catch(err){ console.error(err); alert("La restauration a échoué. Réessayez."); }
+  catch(err){ console.error(err); customAlert("La restauration a échoué. Réessayez."); }
 }
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1274,7 +1338,7 @@ function showCtxMenu(order, x, y){
   });
   el.querySelector('[data-act="delete"]').addEventListener('click', async ()=>{
     hideCtxMenu();
-    if(confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+    if(await customConfirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.', {danger:true, confirmLabel:'Mettre à la corbeille'})){
       await softDeleteOrder(order);
     }
   });
@@ -1405,6 +1469,19 @@ function render(){
   document.getElementById('next-month').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('today-btn').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('print-week-btn').style.display = currentView==='cal' ? '' : 'none';
+  const summaryEl = document.getElementById('today-summary');
+  if(summaryEl){
+    summaryEl.style.display = currentView==='cal' ? '' : 'none';
+    if(currentView==='cal'){
+      const today = todayIso();
+      const weekStart = mondayOf(today);
+      const weekEndDate = new Date(weekStart+'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate()+6);
+      const weekEnd = isoDate(weekEndDate);
+      const todayCount = ordersByDate(today).length;
+      const weekCount = orders.filter(o=>o.date>=weekStart && o.date<=weekEnd).length;
+      summaryEl.innerHTML = `<b>${todayCount}</b> TP aujourd'hui · <b>${weekCount}</b> cette semaine`;
+    }
+  }
   closeMonthPicker();
   let html;
   if(currentView==='cal') html = renderCalendar();
@@ -1592,7 +1669,7 @@ function attachSlipActionHandlers(root){
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+      if(o && await customConfirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.', {danger:true, confirmLabel:'Mettre à la corbeille'})){
         await softDeleteOrder(o);
       }
     });
@@ -2326,7 +2403,7 @@ function attachPrepareHandlers(root){
         console.error(err);
         el.checked = !checked;
         setState(!checked);
-        alert("La mise à jour a échoué. Réessayez.");
+        customAlert("La mise à jour a échoué. Réessayez.");
       }finally{
         el.disabled = false;
       }
@@ -2397,7 +2474,7 @@ function attachContentHandlers(){
     emptyTrashBtn.addEventListener('click', async ()=>{
       const total = ordersTrash.length + catalogueTrash.length + protocolesTrash.length;
       const restitution = ordersTrash.some(o=>o.stockDeducted);
-      if(confirm(`Supprimer définitivement les ${total} élément(s) de la corbeille ? Cette action est irréversible` + (restitution ? ' (le matériel des commandes sera restitué au stock).' : '.'))){
+      if(await customConfirm(`Supprimer définitivement les ${total} élément(s) de la corbeille ? Cette action est irréversible` + (restitution ? ' (le matériel des commandes sera restitué au stock).' : '.'), {danger:true, confirmLabel:'Supprimer définitivement'})){
         emptyTrashBtn.disabled = true;
         await emptyTrash();
         emptyTrashBtn.disabled = false;
@@ -2413,7 +2490,7 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="purge-order"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = ordersTrash.find(x=>x.id===el.getAttribute('data-id'));
-      if(o && confirm('Supprimer définitivement cette commande ? Cette action est irréversible' + (o.stockDeducted ? ' (le matériel sera restitué au stock).' : '.'))){
+      if(o && await customConfirm('Supprimer définitivement cette commande ? Cette action est irréversible' + (o.stockDeducted ? ' (le matériel sera restitué au stock).' : '.'), {danger:true, confirmLabel:'Supprimer définitivement'})){
         await deleteOrderAndRestoreStock(o);
       }
     });
@@ -2427,9 +2504,9 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="purge-cat"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const it = catalogueTrash.find(x=>x.id===el.getAttribute('data-id'));
-      if(it && confirm(`Supprimer définitivement « ${it.nom} » ? Cette action est irréversible.`)){
+      if(it && await customConfirm(`Supprimer définitivement « ${it.nom} » ? Cette action est irréversible.`, {danger:true, confirmLabel:'Supprimer définitivement'})){
         try{ await catalogueCol.doc(it.id).delete(); }
-        catch(err){ console.error(err); alert("La suppression a échoué : " + (err && err.message ? err.message : err)); }
+        catch(err){ console.error(err); customAlert("La suppression a échoué : " + (err && err.message ? err.message : err)); }
       }
     });
   });
@@ -2452,9 +2529,9 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="purge-proto"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const p = protocolesTrash.find(x=>x.id===el.getAttribute('data-id'));
-      if(p && confirm(`Supprimer définitivement le protocole « ${p.titre} » ? Cette action est irréversible.`)){
+      if(p && await customConfirm(`Supprimer définitivement le protocole « ${p.titre} » ? Cette action est irréversible.`, {danger:true, confirmLabel:'Supprimer définitivement'})){
         try{ await protocolesCol.doc(p.id).delete(); }
-        catch(err){ console.error(err); alert("La suppression a échoué : " + (err && err.message ? err.message : err)); }
+        catch(err){ console.error(err); customAlert("La suppression a échoué : " + (err && err.message ? err.message : err)); }
       }
     });
   });
@@ -2470,7 +2547,7 @@ function attachContentHandlers(){
       e.stopPropagation();
       const iso = btn.getAttribute('data-date');
       if(!isOrderable(iso)){
-        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
+        customAlert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y déposer une nouvelle commande.`);
         return;
       }
       openDayModal(iso, true);
@@ -2552,14 +2629,14 @@ function attachContentHandlers(){
       const wantsDuplicate = e.ctrlKey || e.metaKey || e.altKey;
       if(!wantsDuplicate && order.date===newIso) return;
       if(!isOrderable(newIso)){
-        alert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y ${wantsDuplicate?'dupliquer':'déplacer'} une commande.`);
+        customAlert(`Ce jour est à moins de ${MIN_LEAD_DAYS} jours : il est trop tard pour y ${wantsDuplicate?'dupliquer':'déplacer'} une commande.`);
         return;
       }
       if(wantsDuplicate){
-        if(!confirm(`Dupliquer la commande de ${order.prof} du ${fmtDateLong(order.date)} vers le ${fmtDateLong(newIso)} ?`)) return;
+        if(!await customConfirm(`Dupliquer la commande de ${order.prof} du ${fmtDateLong(order.date)} vers le ${fmtDateLong(newIso)} ?`, {confirmLabel:'Dupliquer'})) return;
         await duplicateOrderToDate(order, newIso);
       }else{
-        if(!confirm(`Déplacer la commande de ${order.prof} du ${fmtDateLong(order.date)} au ${fmtDateLong(newIso)} ?`)) return;
+        if(!await customConfirm(`Déplacer la commande de ${order.prof} du ${fmtDateLong(order.date)} au ${fmtDateLong(newIso)} ?`, {confirmLabel:'Déplacer'})) return;
         await moveOrderToDate(order, newIso);
       }
     });
@@ -2633,7 +2710,7 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+      if(o && await customConfirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.', {danger:true, confirmLabel:'Mettre à la corbeille'})){
         await softDeleteOrder(o);
       }
     });
@@ -2734,7 +2811,7 @@ function attachContentHandlers(){
         const collapsed = window._catCollapsedGroups || (window._catCollapsedGroups = loadCollapsedCatGroups());
         if(collapsed.has(oldName)){ collapsed.delete(oldName); collapsed.add(trimmed); saveCollapsedCatGroups(collapsed); }
       }catch(err){
-        alert("Le renommage a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("Le renommage a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   });
@@ -2785,7 +2862,7 @@ function attachContentHandlers(){
       try{
         await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) + 1, updatedAt: Date.now() });
       }catch(err){
-        alert("Le réapprovisionnement a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("Le réapprovisionnement a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   });
@@ -2797,7 +2874,7 @@ function attachContentHandlers(){
       try{
         await catalogueCol.doc(it.id).update({ quantite: (it.quantite!=null?it.quantite:0) - 1, updatedAt: Date.now() });
       }catch(err){
-        alert("Le retrait de stock a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("Le retrait de stock a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   });
@@ -2835,14 +2912,14 @@ function attachContentHandlers(){
       const categorie = catSel==='__autre__' ? document.getElementById('edit-cat-category-autre').value.trim() : catSel;
       const salleSel = document.getElementById('edit-cat-salle').value;
       const salle = salleSel==='__autre__' ? document.getElementById('edit-cat-salle-autre').value.trim() : salleSel;
-      if(!nom){ alert('Indiquez le nom du matériel.'); return; }
+      if(!nom){ customAlert('Indiquez le nom du matériel.'); return; }
       try{
         await catalogueCol.doc(id).update({
           nom, quantite: qtyRaw!==''?Number(qtyRaw):null, unite, categorie: categorie||null, salle: salle||null, updatedAt: Date.now()
         });
         window._catEditingId = null;
       }catch(err){
-        alert("La mise à jour a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("La mise à jour a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   });
@@ -2863,7 +2940,7 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="delete-cat"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const it = catalogue.find(x=>x.id===el.getAttribute('data-id'));
-      if(it && confirm(`Mettre « ${it.nom} » à la corbeille ? Vous pourrez le restaurer, ou il sera supprimé définitivement après 30 jours.`)){
+      if(it && await customConfirm(`Mettre « ${it.nom} » à la corbeille ? Vous pourrez le restaurer, ou il sera supprimé définitivement après 30 jours.`, {danger:true, confirmLabel:'Mettre à la corbeille'})){
         await softDeleteCatalogueItem(it);
       }
     });
@@ -2908,7 +2985,7 @@ function attachContentHandlers(){
     bulkDeleteBtn.addEventListener('click', async ()=>{
       const selected = window._catSelected || new Set();
       if(!selected.size) return;
-      if(!confirm(`Mettre ces ${selected.size} article(s) à la corbeille ? Vous pourrez les restaurer, ou ils seront supprimés définitivement après 30 jours.`)) return;
+      if(!await customConfirm(`Mettre ces ${selected.size} article(s) à la corbeille ? Vous pourrez les restaurer, ou ils seront supprimés définitivement après 30 jours.`, {danger:true, confirmLabel:'Mettre à la corbeille'})) return;
       const toDelete = catalogue.filter(it=>selected.has(it.id));
       for(const it of toDelete) await softDeleteCatalogueItem(it);
       selected.clear();
@@ -2931,7 +3008,7 @@ function attachContentHandlers(){
         selected.clear();
         render();
       }catch(err){
-        alert("Le changement de catégorie a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("Le changement de catégorie a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   }
@@ -2951,7 +3028,7 @@ function attachContentHandlers(){
         selected.clear();
         render();
       }catch(err){
-        alert("Le changement de salle a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("Le changement de salle a échoué. Vérifiez la connexion et réessayez.");
       }
     });
   }
@@ -2993,7 +3070,7 @@ function attachContentHandlers(){
         importTextValue = '';
         render();
       }catch(err){
-        alert("L'import a échoué. Vérifiez la connexion et réessayez.");
+        customAlert("L'import a échoué. Vérifiez la connexion et réessayez.");
         confirmImportBtn.disabled = false;
       }
     });
@@ -3043,7 +3120,7 @@ function attachContentHandlers(){
   document.querySelectorAll('[data-action="delete-proto"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const p = protocoles.find(x=>x.id===el.getAttribute('data-id'));
-      if(p && confirm(`Mettre le protocole « ${p.titre} » à la corbeille ? Vous pourrez le restaurer, ou il sera supprimé définitivement après 30 jours.`)){
+      if(p && await customConfirm(`Mettre le protocole « ${p.titre} » à la corbeille ? Vous pourrez le restaurer, ou il sera supprimé définitivement après 30 jours.`, {danger:true, confirmLabel:'Mettre à la corbeille'})){
         await softDeleteProtocole(p);
       }
     });
@@ -3261,7 +3338,7 @@ function openDayModal(iso, showForm){
   root.querySelectorAll('[data-action="delete"]').forEach(el=>{
     el.addEventListener('click', async ()=>{
       const o = orders.find(x=>x.id===el.getAttribute('data-id'));
-      if(o && confirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.')){
+      if(o && await customConfirm('Mettre cette commande à la corbeille ? Vous pourrez la restaurer, ou elle sera supprimée définitivement (et le matériel restitué au stock) après 30 jours.', {danger:true, confirmLabel:'Mettre à la corbeille'})){
         await softDeleteOrder(o);
         openDayModal(iso, willShowForm);
       }
@@ -3679,7 +3756,7 @@ async function exportOrdersPdf(title, list, filename){
   html += printFooterHtml();
 
   if(typeof html2pdf === 'undefined'){
-    alert("La génération de PDF n'a pas pu se charger (connexion internet requise). Utilisez plutôt le bouton Imprimer et choisissez « Enregistrer en PDF » dans la boîte de dialogue.");
+    customAlert("La génération de PDF n'a pas pu se charger (connexion internet requise). Utilisez plutôt le bouton Imprimer et choisissez « Enregistrer en PDF » dans la boîte de dialogue.");
     return;
   }
   const wrapper = document.createElement('div');
@@ -3779,11 +3856,11 @@ function openPrintWeekModal(){
   });
 }
 
-function closeModal(){
+async function closeModal(){
   const modalRoot = document.getElementById('modal-root');
   const sensitive = modalRoot && modalRoot.querySelector('#order-modal-box, #edit-modal-box');
   if(sensitive && modalDirty){
-    if(!confirm('Fermer sans enregistrer ? Les informations saisies seront perdues.')) return;
+    if(!await customConfirm('Fermer sans enregistrer ? Les informations saisies seront perdues.', {danger:true, confirmLabel:'Fermer sans enregistrer'})) return;
   }
   modalDirty = false;
   dayModalState = null;
@@ -4070,11 +4147,11 @@ async function restoreFromBackupFile(file){
     const text = await file.text();
     backup = JSON.parse(text);
   }catch(err){
-    alert("Ce fichier n'est pas une sauvegarde JSON valide.");
+    customAlert("Ce fichier n'est pas une sauvegarde JSON valide.");
     return;
   }
   if(!backup || (!Array.isArray(backup.commandes) && !Array.isArray(backup.catalogue) && !Array.isArray(backup.protocoles))){
-    alert("Ce fichier ne ressemble pas à une sauvegarde de l'agenda (structure inattendue).");
+    customAlert("Ce fichier ne ressemble pas à une sauvegarde de l'agenda (structure inattendue).");
     return;
   }
 
@@ -4088,7 +4165,7 @@ async function restoreFromBackupFile(file){
   const total = missingOrders.length + missingCat.length + missingProto.length;
 
   if(total===0){
-    alert("Rien à restaurer : toutes les données de cette sauvegarde sont déjà présentes.");
+    customAlert("Rien à restaurer : toutes les données de cette sauvegarde sont déjà présentes.");
     return;
   }
 
@@ -4098,7 +4175,7 @@ async function restoreFromBackupFile(file){
     missingProto.length ? `${missingProto.length} protocole${missingProto.length>1?'s':''}` : null
   ].filter(Boolean).join(', ');
 
-  if(!confirm(`Restaurer ${summary} absent(s) des données actuelles ? Rien d'existant ne sera modifié ni écrasé.`)){
+  if(!await customConfirm(`Restaurer ${summary} absent(s) des données actuelles ? Rien d'existant ne sera modifié ni écrasé.`, {confirmLabel:'Restaurer'})){
     return;
   }
 
@@ -4106,10 +4183,10 @@ async function restoreFromBackupFile(file){
     await restoreMissingDocs(ordersCol, existingOrderIds, missingOrders);
     await restoreMissingDocs(catalogueCol, existingCatIds, missingCat);
     await restoreMissingDocs(protocolesCol, existingProtoIds, missingProto);
-    alert(`Restauration terminée : ${summary}.`);
+    customAlert(`Restauration terminée : ${summary}.`);
   }catch(err){
     console.error(err);
-    alert("La restauration a échoué en cours de route. Vérifiez les données et réessayez si besoin — ce qui a déjà été restauré reste en place.");
+    customAlert("La restauration a échoué en cours de route. Vérifiez les données et réessayez si besoin — ce qui a déjà été restauré reste en place.");
   }
 }
 
@@ -4135,7 +4212,7 @@ function downloadFullBackup(){
 
 function downloadCsv(list){
   if(!list || list.length===0){
-    alert("Aucune commande à télécharger avec ces filtres.");
+    customAlert("Aucune commande à télécharger avec ces filtres.");
     return;
   }
   const headers = ['Date','Horaire','Salle','Enseignant','Classe','Matériel','Quantité','Unité','Remarques'];
@@ -4168,7 +4245,7 @@ function downloadCsv(list){
 
 function downloadCatalogueCsv(list){
   if(!list || list.length===0){
-    alert("Aucun article à télécharger avec ces filtres.");
+    customAlert("Aucun article à télécharger avec ces filtres.");
     return;
   }
   const headers = ['Article','Quantité','Unité','Catégorie','Salle'];
@@ -4296,7 +4373,7 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
 document.getElementById('backup-btn').addEventListener('click', ()=> downloadFullBackup());
 
 document.getElementById('logout-btn').addEventListener('click', async ()=>{
-  if(confirm('Se déconnecter de l\'agenda ?')){
+  if(await customConfirm('Se déconnecter de l\'agenda ?', {confirmLabel:'Se déconnecter'})){
     await auth.signOut();
   }
 });
