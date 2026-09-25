@@ -104,8 +104,17 @@
   .prof-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
   .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
   .month-nav{display:flex;align-items:center;gap:8px;}
-  .today-summary{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;padding:0 2px;}
-  .today-summary b{color:var(--teal-dark);font-weight:600;}
+  .today-summary{
+    display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--border);
+    border-radius:999px;padding:5px 14px 5px 12px;box-shadow:var(--shadow-sm);
+  }
+  .today-summary-icon{width:15px;height:15px;flex:none;color:var(--teal-dark);margin-right:8px;}
+  .today-summary-item{
+    display:inline-flex;align-items:baseline;gap:5px;padding:0 8px;font-family:'IBM Plex Sans',sans-serif;
+    font-size:12.5px;color:var(--ink-soft);white-space:nowrap;
+  }
+  .today-summary-item b{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--teal-dark);font-weight:700;}
+  .today-summary-sep{width:1px;align-self:stretch;background:var(--border);}
   .month-nav button{
     font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--surface);
     border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 13px;cursor:pointer;color:var(--ink);
@@ -1479,7 +1488,7 @@ function render(){
       const weekEnd = isoDate(weekEndDate);
       const todayCount = ordersByDate(today).length;
       const weekCount = orders.filter(o=>o.date>=weekStart && o.date<=weekEnd).length;
-      summaryEl.innerHTML = `<b>${todayCount}</b> TP aujourd'hui · <b>${weekCount}</b> cette semaine`;
+      summaryEl.innerHTML = `<svg class="today-summary-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12" height="17" rx="2"/><path d="M9.5 3.5v-1a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1"/><path d="M9 10.5h6"/><path d="M9 14h6"/></svg><span class="today-summary-item"><b>${todayCount}</b> TP aujourd'hui</span><span class="today-summary-sep"></span><span class="today-summary-item"><b>${weekCount}</b> TP cette semaine</span>`;
     }
   }
   closeMonthPicker();
