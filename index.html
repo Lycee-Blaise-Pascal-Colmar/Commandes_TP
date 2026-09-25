@@ -2309,8 +2309,14 @@ function attachPrepareHandlers(root){
       const id = el.getAttribute('data-id');
       const checked = el.checked;
       const setState = (isPrepared)=>{
-        el.closest('.slip').classList.toggle('prepared', isPrepared);
+        const slipEl = el.closest('.slip');
+        slipEl.classList.toggle('prepared', isPrepared);
         el.nextSibling.textContent = isPrepared ? '✓ Préparé' : 'Préparé';
+        if(isPrepared){
+          markOrdersSeen([id]);
+          slipEl.classList.remove('slip-new');
+          slipEl.querySelectorAll('.new-badge').forEach(b=>b.remove());
+        }
       };
       setState(checked);
       el.disabled = true;
