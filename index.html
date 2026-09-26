@@ -686,9 +686,37 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script>
-/* =========================================================================
-   0) BOÎTES DE DIALOGUE — remplacent les alert()/confirm() natifs du navigateur
-   ========================================================================= */
+/* ============================================================================
+   SOMMAIRE DU SCRIPT — cherchez (Ctrl/Cmd+F) le numéro suivi d'un point,
+   ex. "8." ou "13.", pour sauter directement à une section.
+   ----------------------------------------------------------------------------
+    1. Boîtes de dialogue génériques (alert / confirm)
+    2. Firebase — config, collections & état global
+    3. Constantes métier (unités, catégories, classes, profs, salles, couleurs)
+    4. Utilitaires de dates (délai min., jours fériés, vacances scolaires)
+    5. Synchronisation temps réel (Firestore) & purge auto. de la corbeille
+    6. Formatage de dates & résolution des références catalogue
+    7. CRUD commandes & gestion du stock
+    8. Utilitaires texte & éditeur riche (gras/italique/souligné)
+    9. Bulle d'aperçu au survol d'une commande
+   10. Menu contextuel (clic droit / appui long)
+   11. Champs formulaire — éditeur riche & horaires
+   12. Sélecteur de mois (month picker)
+   13. Rendu principal & vues (calendrier, agenda, recherche, à préparer,
+       protocoles, stats, planning, corbeille, catalogue)
+   14. Import / export catalogue & bons de commande
+   15. Modale jour (ajout / consultation des commandes d'une date)
+   16. Import rapide de matériel (16b : ajout rapide de protocole)
+   17. Impression & export PDF
+   18. Modales : fermeture, duplication, édition de commande
+   19. Sauvegarde / restauration & exports CSV
+   20. Raccourcis clavier & navigation
+   21. Authentification
+   ============================================================================ */
+
+/* ==========================================================================
+   1. BOÎTES DE DIALOGUE GÉNÉRIQUES — remplacent les alert()/confirm() natifs
+   ========================================================================== */
 function showDialog({message, buttons}){
   return new Promise(resolve=>{
     const root = document.getElementById('confirm-root');
@@ -732,11 +760,11 @@ function customConfirm(message, opts={}){
   ]});
 }
 
-/* =========================================================================
-   1) CONFIGURATION FIREBASE — À REMPLIR
-   Remplacez les valeurs ci-dessous par celles de votre projet Firebase
-   (Console Firebase > Paramètres du projet > Vos applications > SDK config).
-   ========================================================================= */
+/* ==========================================================================
+   2. FIREBASE — CONFIGURATION, COLLECTIONS & ÉTAT GLOBAL DE L'APPLICATION
+   (Remplacez les valeurs ci-dessous par celles de votre projet Firebase :
+   Console Firebase > Paramètres du projet > Vos applications > SDK config)
+   ========================================================================== */
 const firebaseConfig = {
   apiKey: "AIzaSyBRWvbqlOgNPKXEXM4leK9ysRYp-TQ30TI",
   authDomain: "commandes-tp.firebaseapp.com",
@@ -745,7 +773,6 @@ const firebaseConfig = {
   messagingSenderId: "85014859128",
   appId: "1:85014859128:web:7f7b4c137224ba015f4c8d"
 };
-/* ========================================================================= */
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -826,6 +853,10 @@ let unsubscribeOrders = null;
 let unsubscribeCatalogue = null;
 let unsubscribeProtocoles = null;
 
+
+/* ==========================================================================
+   3. CONSTANTES MÉTIER (unités, catégories, classes, profs, salles, couleurs)
+   ========================================================================== */
 const UNITS = ['unité','pièce','boîte','flacon','paquet','g','kg','mL','L','tube','plaque','sachet'];
 const CATEGORIES = ['Produits chimiques','Milieux de culture','Verrerie','Biologie moléculaire','Souches bactériennes','Souches de moisissures et levures','Consommables'];
 const CATALOGUE_SALLES = ['A138','A142'];
@@ -887,6 +918,10 @@ function updateModalProfBg(boxEl, prof){
   if(h2) h2.style.color = c.text;
 }
 
+
+/* ==========================================================================
+   4. UTILITAIRES DE DATES (délai min., formatage, jours fériés, vacances scolaires)
+   ========================================================================== */
 const MIN_LEAD_DAYS = 3; // délai minimum, en JOURS OUVRÉS, entre le dépôt d'une commande et la date du TP
 
 function minOrderableIso(){
@@ -973,6 +1008,10 @@ function vacanceInfo(iso){
   return null;
 }
 
+
+/* ==========================================================================
+   5. SYNCHRONISATION TEMPS RÉEL (Firestore) & PURGE AUTOMATIQUE DE LA CORBEILLE
+   ========================================================================== */
 function unsubscribeAll(){
   if(unsubscribeOrders){ unsubscribeOrders(); unsubscribeOrders = null; }
   if(unsubscribeCatalogue){ unsubscribeCatalogue(); unsubscribeCatalogue = null; }
@@ -1049,6 +1088,10 @@ async function purgeExpiredTrash(){
   }
 }
 
+
+/* ==========================================================================
+   6. FORMATAGE DE DATES & RÉSOLUTION DES RÉFÉRENCES CATALOGUE
+   ========================================================================== */
 function fmtMonthTitle(d){
   return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 }
@@ -1076,6 +1119,10 @@ function resolveItemRefs(items){
 }
 
 // Enregistre une nouvelle commande et décompte immédiatement le matériel correspondant du stock du catalogue.
+
+/* ==========================================================================
+   7. CRUD COMMANDES & GESTION DU STOCK (créer / modifier / déplacer / dupliquer / supprimer)
+   ========================================================================== */
 async function createOrderAndDeductStock(orderData){
   const itemRefs = resolveItemRefs(orderData.items);
   const newOrderRef = ordersCol.doc();
@@ -1212,6 +1259,10 @@ async function restoreProtocole(p){
   try{ await protocolesCol.doc(p.id).update({ supprime:false, supprimeLe: null }); }
   catch(err){ console.error(err); customAlert("La restauration a échoué. Réessayez."); }
 }
+
+/* ==========================================================================
+   8. UTILITAIRES TEXTE & ÉDITEUR RICHE (gras / italique / souligné)
+   ========================================================================== */
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -1249,7 +1300,9 @@ function richTextToPlain(html){
   return (tmp.textContent || '').trim();
 }
 
-/* ---------- Bulle d'aperçu au survol d'une commande dans le calendrier ---------- */
+/* ==========================================================================
+   9. BULLE D'APERÇU AU SURVOL D'UNE COMMANDE DANS LE CALENDRIER
+   ========================================================================== */
 let orderTooltipEl = null;
 function ensureOrderTooltipEl(){
   if(!orderTooltipEl){
@@ -1303,7 +1356,9 @@ function hideOrderTooltip(){
 }
 window.addEventListener('scroll', hideOrderTooltip, true);
 
-/* ---------- Menu contextuel (clic droit / appui long) sur une commande ---------- */
+/* ==========================================================================
+   10. MENU CONTEXTUEL (clic droit / appui long) SUR UNE COMMANDE
+   ========================================================================== */
 let ctxMenuEl = null;
 function ensureCtxMenuEl(){
   if(!ctxMenuEl){
@@ -1357,6 +1412,10 @@ document.addEventListener('click', (e)=>{
 });
 window.addEventListener('scroll', hideCtxMenu, true);
 document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') hideCtxMenu(); });
+
+/* ==========================================================================
+   11. CHAMPS FORMULAIRE — ÉDITEUR RICHE & HORAIRES
+   ========================================================================== */
 function rteFieldHtml(id, placeholder){
   return `
     <div class="rte-wrap">
@@ -1424,6 +1483,10 @@ function getCatalogueSalles(){
   return Array.from(new Set([...CATALOGUE_SALLES, ...fromCatalogue])).sort((a,b)=>a.localeCompare(b,'fr'));
 }
 
+
+/* ==========================================================================
+   12. SÉLECTEUR DE MOIS (month picker)
+   ========================================================================== */
 const MOIS_COURTS = ['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
 let monthPickerYear = null;
 
@@ -1469,6 +1532,10 @@ function openMonthPicker(){
   setTimeout(()=> document.addEventListener('click', onDocClickCloseMonthPicker, true), 0);
 }
 
+
+/* ==========================================================================
+   13. RENDU PRINCIPAL & VUES (calendrier, agenda, recherche, à préparer, protocoles, stats, planning, corbeille, catalogue)
+   ========================================================================== */
 function render(){
   const prepareBtn = document.getElementById('view-prepare');
   if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
@@ -1506,6 +1573,8 @@ function render(){
   attachContentHandlers();
 }
 
+
+  /* ---- Vue : Calendrier mensuel ---- */
 function renderCalendar(){
   const year = cursor.getFullYear(), month = cursor.getMonth();
   const firstOfMonth = new Date(year,month,1);
@@ -1548,6 +1617,8 @@ function renderCalendar(){
   return html;
 }
 
+
+  /* ---- Vue : Agenda (liste chronologique) ---- */
 function renderAgenda(){
   const profs = Array.from(new Set(orders.map(o=>o.prof))).sort((a,b)=>a.localeCompare(b,'fr'));
   const classes = Array.from(new Set(orders.map(o=>o.classe).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr'));
@@ -1639,6 +1710,8 @@ function renderAgenda(){
   return filtersHtml + body;
 }
 
+
+  /* ---- Vue : Recherche ---- */
 function renderSearchResults(q){
   const query = q.trim().toLowerCase();
   if(!query){
@@ -1704,6 +1777,8 @@ function weekRangeLabel(mondayIso){
   return `Semaine du ${fmtDateShort(mondayIso)} au ${fmtDateShort(isoDate(end))} ${end.getFullYear()}`;
 }
 
+
+  /* ---- Vue : À préparer (semaine) ---- */
 function renderPrepare(){
   const weekStart = prepareCursor;
   const end = new Date(weekStart+'T00:00:00'); end.setDate(end.getDate()+6);
@@ -1742,6 +1817,8 @@ function renderPrepare(){
   return header + body;
 }
 
+
+  /* ---- Vue : Protocoles ---- */
 function renderProtocoles(){
   const filterClasse = window._protoClasseFilter || 'toutes';
   const list = protocoles.filter(p=> filterClasse==='toutes' || (p.classes||[]).includes(filterClasse));
@@ -1837,6 +1914,8 @@ function schoolYearOf(iso){
 }
 function schoolYearLabel(y){ return `${y}-${y+1}`; }
 
+
+  /* ---- Vue : Statistiques ---- */
 function renderStats(){
   const allYears = Array.from(new Set(orders.map(o=>schoolYearOf(o.date)))).sort((a,b)=>b-a);
   const currentSY = schoolYearOf(todayIso());
@@ -1928,6 +2007,8 @@ function renderStats(){
     </div>`;
 }
 
+
+  /* ---- Vue : Planning des salles ---- */
 function renderPlanning(){
   // La semaine affichée doit toujours contenir le jour sélectionné.
   if(planningDayCursor < planningWeekCursor || planningDayCursor > isoDate((()=>{ const d=new Date(planningWeekCursor+'T00:00:00'); d.setDate(d.getDate()+5); return d; })())){
@@ -2022,6 +2103,8 @@ function renderPlanning(){
   return nav + grid + sansHoraireHtml;
 }
 
+
+  /* ---- Vue : Corbeille ---- */
 function renderCorbeille(){
   const hasAnything = ordersTrash.length || catalogueTrash.length || protocolesTrash.length;
   if(!hasAnything){
@@ -2085,6 +2168,8 @@ function renderCorbeille(){
     </div>`;
 }
 
+
+  /* ---- Vue : Catalogue ---- */
 function loadCollapsedCatGroups(){
   try{ return new Set(JSON.parse(localStorage.getItem('agenda-tp-cat-collapsed')||'[]')); }catch(e){ return new Set(); }
 }
@@ -2319,6 +2404,10 @@ function renderCatEditRow(it, categories, salles){
     </div>`;
 }
 
+
+/* ==========================================================================
+   14. IMPORT / EXPORT CATALOGUE & BONS DE COMMANDE (slip)
+   ========================================================================== */
 function parseImportText(text){
   return text.split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{
     const parts = line.includes('\t') ? line.split('\t') : line.includes(';') ? line.split(';') : line.split(',');
@@ -3170,7 +3259,9 @@ async function importCatalogueRows(rows){
   }
 }
 
-/* ---------- Day modal (add / view orders for a given day) ---------- */
+/* ==========================================================================
+   15. MODALE JOUR (ajout / consultation des commandes d'une date)
+   ========================================================================== */
 let modalItemRowCount = 0;
 let dayModalState = null; // { iso, showForm } — permet la navigation clavier ← → entre jours
 let modalDirty = false; // true si le formulaire de commande (dépôt/modification) contient une saisie non enregistrée
@@ -3425,7 +3516,9 @@ function openDayModal(iso, showForm){
   });
 }
 
-/* ---------- Import rapide d'une liste de matériel dans le formulaire de commande ---------- */
+/* ==========================================================================
+   16. IMPORT RAPIDE DE MATÉRIEL DANS LE FORMULAIRE DE COMMANDE
+   ========================================================================== */
 function matImportPanelInitialHtml(prefix){
   return `
     <div class="cat-import-help">Collez une liste copiée depuis un tableur, ou importez un fichier .csv / .txt. Une ligne par article, colonnes <b>matériel, quantité, unité</b> (les deux derniers facultatifs).</div>
@@ -3611,7 +3704,9 @@ function updateProtocoleOptions(classeSelectionnee, selectId, presetVal){
   if([...sel.options].some(o=>o.value===currentVal)) sel.value = currentVal;
 }
 
-/* ---------- Ajout rapide d'un protocole depuis la fenêtre de dépôt/édition d'une commande ---------- */
+/* ==========================================================================
+   16b. AJOUT RAPIDE D'UN PROTOCOLE DEPUIS LE FORMULAIRE DE COMMANDE
+   ========================================================================== */
 function quickAddProtoPanelHtml(prefix){
   return `
     <div id="${prefix}-add-proto-panel" style="display:none;margin-top:8px;padding:10px 12px;border:1px solid var(--border);background:var(--paper);">
@@ -3686,6 +3781,10 @@ function updateMaterielDatalist(){
   });
 }
 
+
+/* ==========================================================================
+   17. IMPRESSION & EXPORT PDF (jour, semaine, bons de commande)
+   ========================================================================== */
 function printOrderRowHtml(o){
   const classeSalleParts = [];
   if(o.classe) classeSalleParts.push(escapeHtml(o.classe));
@@ -3865,6 +3964,10 @@ function openPrintWeekModal(){
   });
 }
 
+
+/* ==========================================================================
+   18. MODALES : FERMETURE, DUPLICATION, ÉDITION DE COMMANDE
+   ========================================================================== */
 async function closeModal(){
   const modalRoot = document.getElementById('modal-root');
   const sensitive = modalRoot && modalRoot.querySelector('#order-modal-box, #edit-modal-box');
@@ -4128,6 +4231,10 @@ function openEditOrderModal(order){
   });
 }
 
+
+/* ==========================================================================
+   19. SAUVEGARDE / RESTAURATION & EXPORTS CSV
+   ========================================================================== */
 function csvEscape(v){
   const s = String(v==null?'':v);
   if(/["\r\n;]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
@@ -4275,7 +4382,11 @@ function downloadCatalogueCsv(list){
   URL.revokeObjectURL(url);
 }
 
-/* ---------- Raccourcis clavier (modales) ---------- */
+
+/* ==========================================================================
+   20. RACCOURCIS CLAVIER & NAVIGATION (boutons de vues, mois)
+   ========================================================================== */
+
 document.addEventListener('keydown', (e)=>{
   const modalRoot = document.getElementById('modal-root');
   if(!modalRoot || !modalRoot.firstElementChild) return; // aucune modale ouverte
@@ -4329,7 +4440,11 @@ function setActiveView(){
   document.getElementById('view-corbeille').classList.toggle('active', currentView==='corbeille');
 }
 
-// --- Authentification ---------------------------------------------------
+
+/* ==========================================================================
+   21. AUTHENTIFICATION (connexion / déconnexion)
+   ========================================================================== */
+
 let realtimeStarted = false;
 
 auth.onAuthStateChanged(user=>{
