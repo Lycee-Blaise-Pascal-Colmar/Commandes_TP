@@ -308,6 +308,19 @@
     box-shadow:var(--shadow-sm);transition:background .15s ease,transform .1s ease;
   }
   .download-btn:hover{background:var(--teal);transform:translateY(-1px);}
+  .dl-menu-wrap{position:relative;margin-left:auto;}
+  .dl-menu-wrap .download-btn{margin-left:0;}
+  .dl-menu{
+    position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:190px;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+    box-shadow:var(--shadow-lg);padding:6px;display:flex;flex-direction:column;gap:2px;
+  }
+  .dl-menu button{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink);text-align:left;
+    background:none;border:none;border-radius:var(--r-sm);padding:8px 10px;cursor:pointer;
+    transition:background .12s ease,color .12s ease;
+  }
+  .dl-menu button:hover{background:var(--teal-pale);color:var(--teal-dark);}
   .month-heading{
     font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600;color:var(--ink-soft);
     text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
@@ -581,33 +594,34 @@
   #confirm-import-btn{width:auto;flex:none;margin-top:0;}
   #print-area{display:none;}
   @media print{
-    body *{visibility:hidden;}
-    #print-area, #print-area *{visibility:visible;}
-    #print-area{
-      display:block !important;position:absolute;left:0;top:0;width:100%;
-      font-family:'IBM Plex Sans',sans-serif;color:#000;background:#fff;padding:20px;
+    /* On isole strictement le contenu à imprimer : tout le reste passe en display:none
+       (et non plus juste invisible) pour ne plus générer de pages blanches inutiles dues
+       à la hauteur résiduelle du reste de l'application dans le flux du document. */
+    body > *{display:none !important;}
+    body > #print-area{
+      display:block !important;width:100%;
+      font-family:'Calibri','Carlito',Arial,sans-serif;color:#000;background:#fff;padding:0;
     }
     @page{margin:16mm 14mm 18mm;}
-    #print-area h1{font-family:'IBM Plex Mono',monospace;font-size:21px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
-    #print-area h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;}
+    #print-area h1{font-size:21px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
+    #print-area h3.print-day-heading{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;break-after:avoid;}
     #print-area h3.print-day-heading:first-of-type{margin-top:0;}
-    #print-area table.print-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto;}
-    #print-area table.print-table col.col-prof{width:15%;}
-    #print-area table.print-table col.col-classe{width:22%;}
-    #print-area table.print-table col.col-materiel{width:63%;}
-    #print-area table.print-table th, #print-area table.print-table td{border:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:break-word;}
-    #print-area table.print-table th{font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;background:#eee;}
-    #print-area table.print-table td{font-size:13.5px;}
-    #print-area table.print-table tr{page-break-inside:avoid;}
-    #print-area table.print-table td.col-prof{font-weight:600;}
-    #print-area table.print-table td.col-classe .horaire{display:block;font-size:12px;color:#333;margin-top:2px;}
-    #print-area table.print-table ul{margin:0;padding-left:16px;}
-    #print-area table.print-table li{font-size:13.5px;margin-bottom:2px;}
-    #print-area table.print-table .print-notes{font-size:12.5px;font-style:italic;color:#333;margin-top:4px;}
-    #print-area table.print-table .print-protocole{font-size:12.5px;color:#333;margin-top:4px;}
+    #print-area .print-table{width:100%;margin-bottom:14px;border:1px solid #000;border-bottom:none;page-break-inside:auto;break-inside:auto;}
+    #print-area .print-row{display:grid;grid-template-columns:13% 20% 17% 50%;}
+    #print-area .print-cell{border-right:1px solid #000;border-bottom:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:break-word;}
+    #print-area .print-cell:last-child{border-right:none;}
+    #print-area .print-row-head{font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;background:#eee;font-weight:700;}
+    #print-area .print-row:not(.print-row-head) .print-cell{font-size:13.5px;}
+    #print-area .print-order-row{page-break-inside:avoid;break-inside:avoid;}
+    #print-area .col-prof{font-weight:700;}
+    #print-area .col-classe .horaire{display:block;font-size:12px;color:#333;margin-top:2px;}
+    #print-area .print-table ul{margin:0;padding-left:16px;}
+    #print-area .print-table li{font-size:13.5px;margin-bottom:2px;}
+    #print-area .print-notes{font-size:12.5px;font-style:italic;color:#333;margin-top:4px;}
+    #print-area .print-protocole{font-size:12.5px;color:#333;margin-top:4px;}
     #print-area .empty-day{font-size:13.5px;color:#333;margin:0 0 14px;}
     #print-area .print-footer{
-      margin-top:16px;font-family:'IBM Plex Mono',monospace;
+      margin-top:16px;
       font-size:10px;color:#555;text-align:center;
     }
   }
@@ -681,7 +695,8 @@
 <div id="confirm-root"></div>
 <div id="print-area"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -1532,6 +1547,23 @@ function openMonthPicker(){
   setTimeout(()=> document.addEventListener('click', onDocClickCloseMonthPicker, true), 0);
 }
 
+/* ---- Petit menu déroulant générique « Télécharger » (CSV / PDF) ---- */
+function closeDlMenu(){
+  const menu = document.getElementById('agenda-dl-menu');
+  if(menu) menu.style.display = 'none';
+  document.removeEventListener('click', onDocClickCloseDlMenu, true);
+}
+function onDocClickCloseDlMenu(e){
+  const wrap = document.getElementById('agenda-dl-wrap');
+  if(wrap && !wrap.contains(e.target)) closeDlMenu();
+}
+function openDlMenu(){
+  const menu = document.getElementById('agenda-dl-menu');
+  if(!menu) return;
+  menu.style.display = 'flex';
+  setTimeout(()=> document.addEventListener('click', onDocClickCloseDlMenu, true), 0);
+}
+
 
 /* ==========================================================================
    13. RENDU PRINCIPAL & VUES (calendrier, agenda, recherche, à préparer, protocoles, stats, planning, corbeille, catalogue)
@@ -1676,7 +1708,13 @@ function renderAgenda(){
         </select>
         <button type="button" id="agenda-month-next" title="Mois suivant (avec commandes)" ${monthKeys.length===0 || curIdx===monthKeys.length-1?'disabled':''}>›</button>
       </div>
-      <button type="button" class="download-btn" id="download-csv">⬇ Télécharger (${list.length})</button>
+      <div class="dl-menu-wrap" id="agenda-dl-wrap">
+        <button type="button" class="download-btn" id="agenda-dl-toggle">⬇ Télécharger (${list.length})</button>
+        <div class="dl-menu" id="agenda-dl-menu" style="display:none;">
+          <button type="button" data-format="csv">📄 Fichier CSV</button>
+          <button type="button" data-format="pdf">🖶 Document PDF</button>
+        </div>
+      </div>
       <button type="button" class="cat-toggle-all" id="agenda-group-toggle">${groupBy==='enseignant' ? '📅 Grouper par mois' : '👤 Grouper par enseignant'}</button>
     </div>`;
 
@@ -2796,9 +2834,25 @@ function attachContentHandlers(){
       attachSlipActionHandlers(resultsEl);
     });
   }
-  const downloadBtn = document.getElementById('download-csv');
+  const downloadBtn = document.getElementById('agenda-dl-toggle');
   if(downloadBtn){
-    downloadBtn.addEventListener('click', ()=> downloadCsv(window._agendaCurrentList || []));
+    downloadBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const menu = document.getElementById('agenda-dl-menu');
+      if(menu && menu.style.display==='flex') closeDlMenu(); else openDlMenu();
+    });
+  }
+  const dlMenu = document.getElementById('agenda-dl-menu');
+  if(dlMenu){
+    dlMenu.querySelectorAll('button[data-format]').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        closeDlMenu();
+        const fmt = btn.getAttribute('data-format');
+        if(fmt==='csv') downloadCsv(window._agendaCurrentList || []);
+        else downloadAgendaPdf();
+      });
+    });
   }
   const printPrepareBtn = document.getElementById('print-prepare-btn');
   if(printPrepareBtn){
@@ -3801,15 +3855,24 @@ function printOrderRowHtml(o){
   if(o.protocoleTitre) materielParts.push(`<div class="print-protocole">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`);
   if(o.notes) materielParts.push(`<div class="print-notes">${o.notes}</div>`);
   const materiel = materielParts.join('') || '&nbsp;';
+  // Chaque commande est un bloc de type "div" (et non une ligne de <table>) afin que
+  // page-break-inside:avoid / break-inside:avoid soit bien respecté par le navigateur à l'impression :
+  // si une commande ne tient pas sur la page en cours, elle démarre entièrement sur la suivante.
   return `
-    <tr>
-      <td class="col-prof">${escapeHtml(o.prof||'')}</td>
-      <td class="col-classe">${classeSalle}${horaire}</td>
-      <td class="col-materiel">${materiel}</td>
-    </tr>`;
+    <div class="print-row print-order-row">
+      <div class="print-cell col-prof">${escapeHtml(o.prof||'')}</div>
+      <div class="print-cell col-titre">${o.titre?escapeHtml(o.titre):'&nbsp;'}</div>
+      <div class="print-cell col-classe">${classeSalle}${horaire}</div>
+      <div class="print-cell col-materiel">${materiel}</div>
+    </div>`;
 }
 
-const PRINT_COLGROUP = `<colgroup><col class="col-prof"><col class="col-classe"><col class="col-materiel"></colgroup>`;
+const PRINT_HEAD_ROW = `<div class="print-row print-row-head">
+  <div class="print-cell">Enseignant</div>
+  <div class="print-cell">Titre du TP</div>
+  <div class="print-cell">Classe et salle</div>
+  <div class="print-cell">Matériel</div>
+</div>`;
 
 function printFooterHtml(){
   const now = new Date();
@@ -3827,16 +3890,16 @@ function printOrdersGrouped(title, list){
     let blockOpen = false;
     list.forEach(o=>{
       if(o.date!==currentDate){
-        if(blockOpen) html += `</tbody></table></div>`;
+        if(blockOpen) html += `</div></div>`;
         html += `<div class="print-day-block">`;
         html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`;
-        html += `<table class="print-table">${PRINT_COLGROUP}<thead><tr><th>Enseignant</th><th>Classe et salle</th><th>Matériel</th></tr></thead><tbody>`;
+        html += `<div class="print-table">${PRINT_HEAD_ROW}`;
         blockOpen = true;
         currentDate = o.date;
       }
       html += printOrderRowHtml(o);
     });
-    if(blockOpen) html += `</tbody></table></div>`;
+    if(blockOpen) html += `</div></div>`;
   }
   html += printFooterHtml();
   area.innerHTML = html;
@@ -3844,57 +3907,119 @@ function printOrdersGrouped(title, list){
 }
 
 async function exportOrdersPdf(title, list, filename){
-  const area = document.getElementById('print-area');
-  let html = `<h1>${escapeHtml(title)}</h1>`;
-  if(!list || list.length===0){
-    html += `<p>Aucune commande.</p>`;
-  }else{
-    let currentDate = null;
-    let blockOpen = false;
-    list.forEach(o=>{
-      if(o.date!==currentDate){
-        if(blockOpen) html += `</tbody></table></div>`;
-        html += `<div class="print-day-block">`;
-        html += `<h3 class="print-day-heading">${capitalize(fmtDateLong(o.date))}</h3>`;
-        html += `<table class="print-table">${PRINT_COLGROUP}<thead><tr><th>Enseignant</th><th>Classe et salle</th><th>Matériel</th></tr></thead><tbody>`;
-        blockOpen = true;
-        currentDate = o.date;
-      }
-      html += printOrderRowHtml(o);
-    });
-    if(blockOpen) html += `</tbody></table></div>`;
-  }
-  html += printFooterHtml();
-
-  if(typeof html2pdf === 'undefined'){
+  if(typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.API.autoTable !== 'function'){
     customAlert("La génération de PDF n'a pas pu se charger (connexion internet requise). Utilisez plutôt le bouton Imprimer et choisissez « Enregistrer en PDF » dans la boîte de dialogue.");
     return;
   }
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'font-family:IBM Plex Sans,sans-serif;color:#000;background:#fff;padding:4mm;';
-  wrapper.innerHTML = `<style>
-    h1{font-family:'IBM Plex Mono',monospace;font-size:21px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
-    h3.print-day-heading{font-family:'IBM Plex Mono',monospace;font-size:15px;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;}
-    table.print-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:14px;}
-    table.print-table col.col-prof{width:15%;} table.print-table col.col-classe{width:22%;} table.print-table col.col-materiel{width:63%;}
-    table.print-table th, table.print-table td{border:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:break-word;font-size:13px;}
-    table.print-table th{font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;background:#eee;}
-    td.col-prof{font-weight:600;}
-    td.col-classe .horaire{display:block;font-size:11px;color:#333;margin-top:2px;}
-    table.print-table ul{margin:0;padding-left:16px;}
-    table.print-table li{font-size:13px;margin-bottom:2px;}
-    .print-notes{font-size:12px;font-style:italic;color:#333;margin-top:4px;}
-    .print-protocole{font-size:12px;color:#333;margin-top:4px;}
-    .print-footer{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#555;text-align:center;}
-  </style>${html}`;
+  // Génération vectorielle (jsPDF + autoTable) plutôt qu'une capture d'image de la page :
+  // la pagination est calculée précisément ligne par ligne, ce qui évite les grands
+  // espaces blancs et les pages vides que produisait la précédente méthode (html2canvas).
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginX = 12;
+  const tableWidth = pageWidth - marginX*2;
+  let y = 16;
 
-  await html2pdf().set({
-    margin: 10,
-    filename: filename,
-    html2canvas: {scale:2},
-    jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
-    pagebreak: {mode:['css','legacy']}
-  }).from(wrapper).save();
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.setTextColor(0,0,0);
+  doc.text(title, marginX, y);
+  y += 3;
+  doc.setDrawColor(0,0,0);
+  doc.setLineWidth(0.5);
+  doc.line(marginX, y, pageWidth-marginX, y);
+  y += 8;
+
+  if(!list || list.length===0){
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(11);
+    doc.text('Aucune commande.', marginX, y);
+  }else{
+    const groups = [];
+    let currentDate = null;
+    list.forEach(o=>{
+      if(o.date!==currentDate){
+        groups.push({date:o.date, orders:[]});
+        currentDate = o.date;
+      }
+      groups[groups.length-1].orders.push(o);
+    });
+
+    groups.forEach(g=>{
+      const headingText = capitalize(fmtDateLong(g.date));
+      // On s'assure qu'il reste la place pour l'intitulé du jour ET au moins le début
+      // d'une ligne avant de l'écrire, sinon il démarre proprement sur la page suivante.
+      if(y + 18 > pageHeight - 16){
+        doc.addPage();
+        y = 16;
+      }
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(12);
+      doc.text(headingText, marginX, y);
+      y += 1.5;
+      doc.setDrawColor(0,0,0);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, y, pageWidth-marginX, y);
+      y += 3;
+
+      const body = g.orders.map(o=>{
+        const classeSalleParts = [];
+        if(o.classe) classeSalleParts.push(o.classe);
+        if(o.salle) classeSalleParts.push('Salle '+o.salle);
+        const classeSalleLines = [classeSalleParts.join(' — ')].filter(Boolean);
+        if(o.horaire) classeSalleLines.push(o.horaire);
+        const materielLines = [];
+        if(o.items && o.items.length){
+          o.items.forEach(it=> materielLines.push(`• ${it.name} — ${it.qty} ${it.unit}`));
+        }
+        if(o.protocoleTitre) materielLines.push(`Protocole : ${o.protocoleTitre}`);
+        if(o.notes){
+          const notesPlain = richTextToPlain(o.notes);
+          if(notesPlain) materielLines.push(notesPlain);
+        }
+        return [
+          o.prof || '',
+          o.titre || '',
+          classeSalleLines.join('\n') || '',
+          materielLines.join('\n') || '—'
+        ];
+      });
+
+      doc.autoTable({
+        startY: y,
+        margin: {left: marginX, right: marginX},
+        head: [['Enseignant','Titre du TP','Classe et salle','Matériel']],
+        body,
+        theme: 'grid',
+        rowPageBreak: 'avoid',
+        styles: {font:'helvetica', fontSize:9.5, cellPadding:2.2, valign:'top', textColor:[0,0,0], lineColor:[0,0,0], lineWidth:0.15},
+        headStyles: {fillColor:[238,238,238], textColor:[0,0,0], fontStyle:'bold', fontSize:9},
+        columnStyles: {
+          0: {cellWidth: tableWidth*0.15, fontStyle:'bold'},
+          1: {cellWidth: tableWidth*0.20},
+          2: {cellWidth: tableWidth*0.18},
+          3: {cellWidth: tableWidth*0.47}
+        }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    });
+  }
+
+  // Pied de page (date d'impression + numéro de page) répété sur chaque page du document.
+  const pageCount = doc.internal.getNumberOfPages();
+  const now = new Date();
+  const stamp = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.setTextColor(85,85,85);
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.text(`Imprimé le ${stamp} — page ${i}/${pageCount}`, pageWidth/2, pageHeight-8, {align:'center'});
+  }
+
+  doc.save(filename);
 }
 
 function printDay(iso){
@@ -4334,11 +4459,11 @@ function downloadCsv(list){
     customAlert("Aucune commande à télécharger avec ces filtres.");
     return;
   }
-  const headers = ['Date','Horaire','Salle','Enseignant','Classe','Matériel','Quantité','Unité','Remarques'];
+  const headers = ['Date','Titre du TP','Horaire','Salle','Enseignant','Classe','Matériel','Quantité','Unité','Remarques'];
   const rows = [headers];
 
   list.forEach(o=>{
-    const base = [o.date, o.horaire||'', o.salle||'', o.prof||'', o.classe||''];
+    const base = [o.date, o.titre||'', o.horaire||'', o.salle||'', o.prof||'', o.classe||''];
     const notesPlain = o.notes ? richTextToPlain(o.notes) : '';
     if(o.items && o.items.length){
       o.items.forEach(it=>{
@@ -4360,6 +4485,42 @@ function downloadCsv(list){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function slugifyFilePart(s){
+  return String(s||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // enlève les accents
+    .replace(/[^a-zA-Z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'')
+    .toLowerCase();
+}
+
+// Export PDF de l'historique (vue Agenda), en tenant compte des filtres actifs
+// (enseignant, classe, mois) : permet de sortir un PDF par prof et/ou par classe.
+function downloadAgendaPdf(){
+  const list = window._agendaCurrentList || [];
+  if(!list.length){
+    customAlert("Aucune commande à exporter en PDF avec ces filtres.");
+    return;
+  }
+  const profVal = window._agendaProfFilter || 'tous';
+  const classeVal = window._agendaClasseFilter || 'toutes';
+  const monthVal = window._agendaMonthFilter || 'tous';
+
+  const titleParts = ['Historique des commandes'];
+  if(profVal!=='tous') titleParts.push(profVal);
+  if(classeVal!=='toutes') titleParts.push(classeVal);
+  if(monthVal!=='tous') titleParts.push(capitalize(fmtMonthKey(monthVal+'-01')));
+  const title = titleParts.join(' — ');
+
+  const fileParts = ['commandes-tp'];
+  if(profVal!=='tous') fileParts.push(slugifyFilePart(profVal));
+  if(classeVal!=='toutes') fileParts.push(slugifyFilePart(classeVal));
+  if(monthVal!=='tous') fileParts.push(monthVal);
+  fileParts.push(todayIso());
+
+  const sorted = [...list].sort((a,b)=> a.date.localeCompare(b.date));
+  exportOrdersPdf(title, sorted, `${fileParts.join('-')}.pdf`);
 }
 
 function downloadCatalogueCsv(list){
