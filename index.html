@@ -383,13 +383,12 @@
     position:sticky;left:0;z-index:1;border-right:1px solid var(--border) !important;
   }
   .planning-cell-empty{background:var(--surface);transition:background .12s ease;}
-  .planning-cell-booked{padding:4px !important;background:var(--surface);}
+  .planning-cell-booked{padding:0 !important;background:var(--surface);position:relative;}
   .planning-booking{
-    height:100%;padding:7px 9px;border-left:3px solid;border-radius:var(--r-sm);font-size:12.5px;line-height:1.4;
-    cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .12s ease;
+    position:absolute;left:4px;right:4px;padding:7px 9px;border-left:3px solid;border-radius:var(--r-sm);font-size:12.5px;line-height:1.4;
+    cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .12s ease;overflow:hidden;
   }
   .planning-booking:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
-  .planning-booking + .planning-booking{margin-top:4px;}
   .planning-booking-titre{font-weight:700;margin-bottom:1px;}
   .planning-booking-prof{font-weight:600;}
   .planning-booking-classe{opacity:0.85;font-size:12px;margin-top:1px;}
@@ -457,6 +456,7 @@
   .modal-section-label:first-of-type{margin-top:0;}
 
   label{display:block;font-size:13px;color:var(--ink-soft);margin:0 0 4px;font-family:'IBM Plex Mono',monospace;}
+  .field-label{display:block;font-size:13px;color:var(--ink-soft);margin:0 0 4px;font-family:'IBM Plex Mono',monospace;}
   .field{margin-bottom:12px;}
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   input[type=text],input[type=number],select,textarea{
@@ -1860,7 +1860,7 @@ function renderProtocoles(){
             <input type="text" id="p-lien" placeholder="https://nuage.apps.education.fr/s/..." required>
           </div>
           <div class="field">
-            <label>Classe(s) concernée(s)</label>
+            <div class="field-label">Classe(s) concernée(s)</div>
             <div class="proto-classes-check">
               ${CLASSES.map((c,i)=>`
                 <label class="proto-check"><input type="checkbox" value="${escapeHtml(c)}" class="p-classe-check"> ${escapeHtml(c)}</label>
@@ -2070,11 +2070,14 @@ function renderPlanning(){
       }
       const span = Math.max(...bookings.map(b=>b.endIdx-b.startIdx));
       skipUntil.set(salle, row+span);
+      const n = bookings.length;
       cellsHtml += `<td class="planning-cell-booked" rowspan="${span}">
-        ${bookings.map(b=>{
+        ${bookings.map((b,i)=>{
           const o = b.order;
           const profColor = getProfColor(o.prof);
-          return `<div class="planning-booking" style="background:${profColor.bg};color:${profColor.text};border-left-color:${profColor.text};" data-open-order="${o.id}">
+          const top = `calc(${i}/${n} * 100% + 2px)`;
+          const height = `calc(100%/${n} - 4px)`;
+          return `<div class="planning-booking" style="top:${top};height:${height};background:${profColor.bg};color:${profColor.text};border-left-color:${profColor.text};" data-open-order="${o.id}">
             ${o.titre?`<div class="planning-booking-titre">${escapeHtml(o.titre)}</div>`:''}
             <div class="planning-booking-prof">${escapeHtml(o.prof)}</div>
             ${o.classe?`<div class="planning-booking-classe">${escapeHtml(o.classe)}</div>`:''}
@@ -3353,7 +3356,7 @@ function openDayModal(iso, showForm){
             </div>
           </div>
           <div class="field">
-            <label>Matériel nécessaire</label>
+            <div class="field-label">Matériel nécessaire</div>
             <div id="items-container"></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="add-item-btn" id="add-item-btn">+ ajouter une ligne</button>
@@ -4125,7 +4128,7 @@ function openEditOrderModal(order){
             </div>
           </div>
           <div class="field">
-            <label>Matériel nécessaire</label>
+            <div class="field-label">Matériel nécessaire</div>
             <div id="edit-items-container"></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="add-item-btn" id="edit-add-item-btn">+ ajouter une ligne</button>
