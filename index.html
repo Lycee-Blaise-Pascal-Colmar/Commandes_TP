@@ -35,7 +35,7 @@
     transition:background-color .15s ease, color .15s ease;
   }
   body::before{content:none;}
-  .wrap{max-width:1120px;margin:0 auto;padding:36px 22px 80px;position:relative;}
+  .wrap{max-width:1280px;margin:0 auto;padding:36px 22px 80px;position:relative;}
 
   header.top{
     display:flex;justify-content:space-between;align-items:center;
@@ -102,7 +102,16 @@
   .prof-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);}
   .prof-legend span{display:inline-flex;align-items:center;gap:5px;}
   .prof-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
-  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+  .toolbar{display:flex;flex-direction:column;align-items:stretch;margin-bottom:18px;gap:14px;}
+  .view-toggle{width:100%;box-sizing:border-box;align-items:center;flex-wrap:nowrap;overflow-x:auto;}
+  .view-sep{width:1px;align-self:stretch;background:var(--border);margin:5px 3px;flex:none;}
+  .view-sep-push{margin-left:auto;background:transparent;}
+  .view-toggle button.view-secondary{color:var(--ink-faint);}
+  .view-toggle button.view-secondary.active{color:#fff;}
+  .tab-count{background:var(--new-accent);color:var(--new-accent-text);border-radius:999px;font-size:10.5px;font-weight:700;padding:0 6px;margin-left:2px;line-height:16px;}
+  .prepare-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .prepare-actions .download-btn{margin-left:0;}
+  .prepare-hide-toggle{padding-right:12px;margin-right:2px;border-right:1px solid var(--border);}
   .month-nav{display:flex;align-items:center;gap:8px;}
   .today-summary{
     display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--border);
@@ -153,9 +162,9 @@
   .agenda-month-nav button:disabled{opacity:0.35;cursor:default;}
   .view-toggle{display:flex;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;gap:2px;flex-wrap:wrap;box-shadow:var(--shadow-sm);}
   .view-toggle button{
-    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13px;background:none;
-    border:none;border-radius:var(--r-sm);padding:8px 14px;cursor:pointer;color:var(--ink-soft);transition:background .15s ease,color .15s ease,box-shadow .15s ease;
-    display:inline-flex;align-items:center;gap:7px;
+    font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:14px;background:none;
+    border:none;border-radius:var(--r-sm);padding:9px 11px;cursor:pointer;color:var(--ink-soft);transition:background .15s ease,color .15s ease,box-shadow .15s ease;
+    display:inline-flex;align-items:center;gap:7px;white-space:nowrap;flex:none;
   }
   .nav-icon{width:15px;height:15px;flex:none;}
   .view-toggle button:hover:not(.active){background:var(--surface);color:var(--ink);}
@@ -329,6 +338,12 @@
     text-transform:uppercase;letter-spacing:0.06em;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);
   }
   .month-heading:first-child{margin-top:0;}
+  .prepare-day-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .prepare-day-btn{font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;background:var(--surface);color:var(--teal-dark);border:1px solid var(--border);border-radius:var(--r-sm);padding:4px 10px;cursor:pointer;transition:border-color .15s ease,background .15s ease;}
+  .prepare-day-btn:hover:not(:disabled){border-color:var(--teal);background:var(--teal-pale);}
+  .prepare-day-btn:disabled{opacity:.6;cursor:default;}
+  .prepare-day-done{font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink-faint);}
+  .prepare-hide-toggle input{accent-color:var(--teal-dark);}
   .cat-group-heading{
     font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--teal-dark);
     text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px;background:var(--teal-pale);
@@ -667,6 +682,19 @@
   </header>
 
   <div class="toolbar">
+    <div class="view-toggle">
+      <button id="view-cal" class="active"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg>Calendrier</button>
+      <button id="view-prepare"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>À préparer<span class="tab-count" id="prepare-tab-count" style="display:none"></span></button>
+      <button id="view-planning"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>Planning salles</button>
+      <span class="view-sep"></span>
+      <button id="view-agenda"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Historique</button>
+      <button id="view-recherche"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>Recherche</button>
+      <button id="view-catalogue"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Catalogue</button>
+      <button id="view-protocoles"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><line x1="10" y1="12" x2="17" y2="12"/><line x1="10" y1="16" x2="17" y2="16"/></svg>Protocoles</button>
+      <span class="view-sep view-sep-push"></span>
+      <button id="view-stats" class="view-secondary"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="12"/><line x1="12" y1="21" x2="12" y2="7"/><line x1="19" y1="21" x2="19" y2="15"/></svg>Statistiques</button>
+      <button id="view-corbeille" class="view-secondary"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Corbeille</button>
+    </div>
     <div class="month-nav">
       <button id="prev-month">‹</button>
       <div class="month-title-wrap">
@@ -677,17 +705,6 @@
       <button id="today-btn">Aujourd'hui</button>
       <button id="print-week-btn" class="download-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer une semaine</button>
       <div id="today-summary" class="today-summary"></div>
-    </div>
-    <div class="view-toggle">
-      <button id="view-cal" class="active"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg>Calendrier</button>
-      <button id="view-prepare"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>À préparer</button>
-      <button id="view-planning"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>Planning salles</button>
-      <button id="view-agenda"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Historique</button>
-      <button id="view-recherche"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>Recherche</button>
-      <button id="view-catalogue"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Catalogue</button>
-      <button id="view-protocoles"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><line x1="10" y1="12" x2="17" y2="12"/><line x1="10" y1="16" x2="17" y2="16"/></svg>Protocoles</button>
-      <button id="view-stats"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="12"/><line x1="12" y1="21" x2="12" y2="7"/><line x1="19" y1="21" x2="19" y2="15"/></svg>Statistiques</button>
-      <button id="view-corbeille"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>Corbeille</button>
     </div>
   </div>
 
@@ -817,13 +834,19 @@ let planningWeekCursor = mondayOf(todayIso()); // lundi de la semaine affichée 
 let seenOrderIds = new Set(JSON.parse(localStorage.getItem('seenOrderIds') || '[]'));
 let seenOrdersInitialized = localStorage.getItem('seenOrderIds') !== null;
 function isOrderNew(o){ return !seenOrderIds.has(o.id); }
+function refreshNewIndicators(){
+  const n = orders.filter(isOrderNew).length;
+  const prepareBtn = document.getElementById('view-prepare');
+  if(prepareBtn) prepareBtn.classList.toggle('has-new', n>0);
+  const pill = document.getElementById('prepare-tab-count');
+  if(pill){ pill.textContent = n; pill.style.display = n>0 ? '' : 'none'; pill.title = n+' commande'+(n>1?'s':'')+' nouvelle'+(n>1?'s':''); }
+}
 function markOrdersSeen(ids){
   let changed = false;
   (ids||[]).forEach(id=>{ if(!seenOrderIds.has(id)){ seenOrderIds.add(id); changed = true; } });
   if(changed){
     localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
-    const prepareBtn = document.getElementById('view-prepare');
-    if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
+    refreshNewIndicators();
   }
 }
 function markOrderAsNew(id){
@@ -1579,8 +1602,9 @@ function openDlMenu(){
    13. RENDU PRINCIPAL & VUES (calendrier, agenda, recherche, à préparer, protocoles, stats, planning, corbeille, catalogue)
    ========================================================================== */
 function render(){
-  const prepareBtn = document.getElementById('view-prepare');
-  if(prepareBtn) prepareBtn.classList.toggle('has-new', orders.some(isOrderNew));
+  refreshNewIndicators();
+  const monthNavEl = document.querySelector('.month-nav');
+  if(monthNavEl) monthNavEl.style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('month-title').textContent = capitalize(fmtMonthTitle(cursor));
   document.getElementById('month-title').style.display = currentView==='cal' ? '' : 'none';
   document.getElementById('prev-month').style.display = currentView==='cal' ? '' : 'none';
@@ -1743,7 +1767,7 @@ function renderAgenda(){
     profNames.forEach(p=>{
       const profOrders = byProf.get(p);
       const c = getProfColor(p);
-      body += `<div class="month-heading" style="border-left:4px solid ${c.border};padding-left:8px;">${escapeHtml(p)} — ${profOrders.length} commande${profOrders.length!==1?'s':''}</div>`;
+      body += `<div class="month-heading" style="border-left:4px solid ${c.border};padding-left:8px;">${escapeHtml(p)} — ${profOrders.length} commande${profOrders.length>1?'s':''}</div>`;
       profOrders.forEach(o=> body += renderSlip(o));
     });
   }else{
@@ -1776,7 +1800,7 @@ function renderSearchResults(q){
   if(matches.length===0){
     return `<div class="empty">Aucun résultat pour « ${escapeHtml(q)} ».</div>`;
   }
-  let body = `<div class="prepare-count">${matches.length} résultat${matches.length!==1?'s':''}</div>`;
+  let body = `<div class="prepare-count">${matches.length} résultat${matches.length>1?'s':''}</div>`;
   let currentMonth = null;
   for(const o of matches){
     const mk = fmtMonthKey(o.date);
@@ -1834,9 +1858,15 @@ function renderPrepare(){
   const isCurrentWeek = weekStart === mondayOf(todayIso());
 
   const list = orders.filter(o=> o.date>=weekStart && o.date<=weekEnd).sort((a,b)=>a.date.localeCompare(b.date));
-  window._prepareCurrentList = list;
+  const hidePrepared = !!window._prepareHidePrepared;
+  const visibleList = hidePrepared ? list.filter(o=>!o.prepared) : list;
+  window._prepareCurrentList = visibleList; // ce qui est affiché est aussi ce qui est imprimé / exporté
   const remaining = list.filter(o=>!o.prepared).length;
   const newCount = orders.filter(isOrderNew).length;
+  const weekNew = list.filter(isOrderNew).length;
+  const countText = list.length===0 ? 'Aucune commande cette semaine'
+    : (remaining===0 ? `✓ Tout est préparé (${list.length}/${list.length})` : `${remaining} à préparer sur ${list.length} cette semaine`);
+  const newLabel = `${newCount} nouvelle${newCount>1?'s':''}` + (weekNew===newCount ? '' : (weekNew===0 ? ' (aucune cette semaine)' : ` (dont ${weekNew} cette semaine)`));
 
   let header = `
     <div class="agenda-filters prepare-nav">
@@ -1846,19 +1876,29 @@ function renderPrepare(){
         ${!isCurrentWeek ? '<button type="button" id="prepare-today-week" class="link-btn">revenir à cette semaine</button>' : ''}
       </div>
       <button type="button" id="prepare-next-week" title="Semaine suivante">›</button>
-      <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine${newCount?` · <button type="button" class="new-badge new-badge-btn" data-action="mark-all-seen" title="Cliquer pour marquer toutes les commandes comme lues">${newCount} nouvelle${newCount!==1?'s':''}</button>`:''}</div>
+      <div class="prepare-count">${countText}${newCount?` · <button type="button" class="new-badge new-badge-btn" data-action="mark-all-seen" title="Cliquer pour marquer toutes les commandes comme lues">${newLabel}</button>`:''}</div>
+      <div class="prepare-actions"><label class="cat-lowstock-toggle prepare-hide-toggle"><input type="checkbox" id="prepare-hide-prepared" ${hidePrepared?'checked':''}> Masquer les préparées</label>
       <button type="button" class="download-btn" id="print-prepare-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer cette semaine</button>
-      <button type="button" class="download-btn" id="pdf-prepare-btn" style="background:var(--teal);border-color:var(--teal);">⬇ PDF</button>
+      <button type="button" class="download-btn" id="pdf-prepare-btn">⬇ PDF</button></div>
     </div>`;
 
   let body;
   if(list.length===0){
     body = '<div class="empty">Aucune commande cette semaine-là.</div>';
+  }else if(visibleList.length===0){
+    body = '<div class="empty">Toutes les commandes de cette semaine sont préparées ✓</div>';
   }else{
     body = '';
     let currentDate = null;
-    for(const o of list){
-      if(o.date!==currentDate){ body += `<div class="month-heading">${capitalize(fmtDateLong(o.date))}</div>`; currentDate = o.date; }
+    for(const o of visibleList){
+      if(o.date!==currentDate){
+        const dayTodo = list.filter(x=>x.date===o.date && !x.prepared).length;
+        const dayAction = dayTodo
+          ? `<button type="button" class="prepare-day-btn" data-action="mark-day-prepared" data-date="${o.date}">✓ Tout marquer comme préparé (${dayTodo})</button>`
+          : `<span class="prepare-day-done">✓ Journée préparée</span>`;
+        body += `<div class="month-heading prepare-day-heading"><span>${capitalize(fmtDateLong(o.date))}</span>${dayAction}</div>`;
+        currentDate = o.date;
+      }
       body += renderSlip(o);
     }
   }
@@ -2034,9 +2074,9 @@ function renderStats(){
     </div>
 
     <div class="stats-kpis">
-      <div class="stats-kpi"><div class="stats-kpi-value">${nbCommandes}</div><div class="stats-kpi-label">Commande${nbCommandes!==1?'s':''}${yearVal===null?' au total':' cette année'}</div></div>
-      <div class="stats-kpi"><div class="stats-kpi-value">${profsSet.size}</div><div class="stats-kpi-label">Enseignant${profsSet.size!==1?'s':''} actif${profsSet.size!==1?'s':''}</div></div>
-      <div class="stats-kpi"><div class="stats-kpi-value">${articleCounts.size}</div><div class="stats-kpi-label">Article${articleCounts.size!==1?'s':''} différent${articleCounts.size!==1?'s':''} commandé${articleCounts.size!==1?'s':''}</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-value">${nbCommandes}</div><div class="stats-kpi-label">Commande${nbCommandes>1?'s':''}${yearVal===null?' au total':' cette année'}</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-value">${profsSet.size}</div><div class="stats-kpi-label">Enseignant${profsSet.size>1?'s':''} actif${profsSet.size>1?'s':''}</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-value">${articleCounts.size}</div><div class="stats-kpi-label">Article${articleCounts.size>1?'s':''} différent${articleCounts.size>1?'s':''} commandé${articleCounts.size>1?'s':''}</div></div>
     </div>
 
     <div class="stats-section">
@@ -2555,6 +2595,28 @@ function attachPrepareHandlers(root){
         customAlert("La mise à jour a échoué. Réessayez.");
       }finally{
         el.disabled = false;
+      }
+    });
+  });
+  const hideToggle = (root||document).querySelector('#prepare-hide-prepared');
+  if(hideToggle){
+    hideToggle.addEventListener('change', ()=>{ window._prepareHidePrepared = hideToggle.checked; render(); });
+  }
+  (root||document).querySelectorAll('[data-action="mark-day-prepared"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const date = btn.getAttribute('data-date');
+      const todo = orders.filter(o=>o.date===date && !o.prepared);
+      if(!todo.length) return;
+      btn.disabled = true;
+      try{
+        const batch = db.batch();
+        todo.forEach(o=> batch.update(ordersCol.doc(o.id), { prepared: true }));
+        await batch.commit();
+        markOrdersSeen(todo.map(o=>o.id));
+      }catch(err){
+        console.error(err);
+        btn.disabled = false;
+        customAlert("La mise à jour a échoué. Réessayez.");
       }
     });
   });
@@ -3359,7 +3421,7 @@ function openDayModal(iso, showForm){
         </div>
 
         ${dayOrders.length ? `<div class="modal-section-label">Commandes déjà déposées</div>${dayOrders.map(renderSlip).join('')}` : ''}
-        ${dayOrders.length ? `<button type="button" class="add-item-btn" id="print-day-btn">🖶 Imprimer cette journée</button><button type="button" class="add-item-btn" id="pdf-day-btn">⬇ PDF</button>` : ''}
+        ${dayOrders.length ? `<div class="prepare-actions" style="margin-top:12px;"><button type="button" class="download-btn" id="print-day-btn"><svg style="width:15px;height:15px;margin-right:5px;vertical-align:-3px;" class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer cette journée</button><button type="button" class="download-btn" id="pdf-day-btn">⬇ PDF</button></div>` : ''}
 
         ${lockedNotice}
         ${willShowForm ? '' : (orderable ? '<button type="button" class="submit-btn" id="show-form-btn" style="margin-top:14px;">+ Déposer une commande</button>' : '')}
