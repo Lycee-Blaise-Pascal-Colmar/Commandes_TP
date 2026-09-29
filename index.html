@@ -163,6 +163,9 @@
   .view-toggle button.has-new{box-shadow:inset 0 0 0 2px var(--new-accent);}
   .view-toggle button.active.has-new{box-shadow:inset 0 0 0 2px var(--new-accent), var(--shadow-sm);}
   .new-badge{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--new-accent);color:var(--new-accent-text);font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle;}
+  .new-badge-btn{border:none;font-family:inherit;cursor:pointer;transition:filter .12s ease,transform .12s ease;}
+  .new-badge-btn:hover{filter:brightness(1.12);transform:translateY(-1px);}
+  .new-badge-btn:focus-visible{outline:2px solid var(--new-accent);outline-offset:2px;}
   .slip.slip-new{box-shadow:0 0 0 2px var(--new-accent), var(--shadow-sm);}
 
   /* Calendar */
@@ -383,7 +386,7 @@
     text-transform:uppercase;letter-spacing:0.05em;background:var(--card);
     position:sticky;top:0;z-index:2;
   }
-  table.planning-grid th:first-child{position:sticky;left:0;top:0;z-index:3;}
+  table.planning-grid th:first-child{position:sticky;left:0;top:0;z-index:3;width:1%;padding:11px 0;}
   table.planning-grid td{border-bottom:1px solid var(--paper-line);border-right:1px solid var(--paper-line);vertical-align:top;padding:0;}
   table.planning-grid td:last-child{border-right:none;}
   table.planning-grid tbody tr:last-child td{border-bottom:none;}
@@ -392,7 +395,7 @@
   table.planning-grid tbody tr:nth-child(5) .planning-hour-label{color:var(--amber);font-weight:600;}
   .planning-hour-label{
     font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);white-space:nowrap;
-    padding:9px 12px !important;background:var(--card);text-align:right;
+    padding:9px 8px !important;width:1%;background:var(--card);text-align:right;
     position:sticky;left:0;z-index:1;border-right:1px solid var(--border) !important;
   }
   .planning-cell-empty{background:var(--surface);transition:background .12s ease;}
@@ -831,6 +834,13 @@ function markOrderAsNew(id){
 // Le marquage "vu" ne s'applique qu'au clic effectif sur la commande (fiche ou étiquette du calendrier),
 // pas au simple fait d'ouvrir un onglet ou une modale qui la liste.
 document.addEventListener('click', (e)=>{
+  const markAllBtn = e.target.closest('[data-action="mark-all-seen"]');
+  if(markAllBtn){
+    markOrdersSeen(orders.filter(isOrderNew).map(o=>o.id));
+    render();
+    if(dayModalState) openDayModal(dayModalState.iso, dayModalState.showForm);
+    return;
+  }
   const toggleBtn = e.target.closest('[data-action="toggle-new"]');
   if(toggleBtn){
     const id = toggleBtn.getAttribute('data-id');
@@ -1836,7 +1846,7 @@ function renderPrepare(){
         ${!isCurrentWeek ? '<button type="button" id="prepare-today-week" class="link-btn">revenir à cette semaine</button>' : ''}
       </div>
       <button type="button" id="prepare-next-week" title="Semaine suivante">›</button>
-      <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine${newCount?` · <span class="new-badge">${newCount} nouvelle${newCount!==1?'s':''}</span>`:''}</div>
+      <div class="prepare-count">${remaining} commande${remaining!==1?'s':''} à préparer sur ${list.length} cette semaine${newCount?` · <button type="button" class="new-badge new-badge-btn" data-action="mark-all-seen" title="Cliquer pour marquer toutes les commandes comme lues">${newCount} nouvelle${newCount!==1?'s':''}</button>`:''}</div>
       <button type="button" class="download-btn" id="print-prepare-btn"><svg class="nav-icon" style="margin-right:5px;vertical-align:-3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>Imprimer cette semaine</button>
       <button type="button" class="download-btn" id="pdf-prepare-btn" style="background:var(--teal);border-color:var(--teal);">⬇ PDF</button>
     </div>`;
