@@ -247,11 +247,14 @@
     transition:opacity .1s ease, transform .1s ease;
   }
   .order-tooltip.visible{opacity:1;transform:translateY(0);}
+  .order-tooltip .ot-tp{font-weight:500;font-size:13px;color:var(--ink);margin:0 0 3px;line-height:1.3;}
   .order-tooltip.day-tooltip{width:auto;min-width:250px;max-width:min(380px,calc(100vw - 24px));}
   .order-tooltip.day-tooltip ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;}
   .order-tooltip.day-tooltip li{display:flex;align-items:baseline;gap:8px;line-height:1.3;margin:0;padding:4px 8px;border-radius:4px;border-left:3px solid var(--teal);background:var(--teal-pale);color:var(--teal-dark);}
   .order-tooltip.day-tooltip li.ot-more{background:none;border-left-color:transparent;color:var(--ink-faint);padding-top:0;padding-bottom:0;}
   .day-tooltip .dt-time{font-family:'IBM Plex Mono',monospace;font-size:11px;flex:none;opacity:.8;}
+  .day-tooltip .dt-main{flex:1;min-width:0;}
+  .day-tooltip .dt-title{display:block;font-size:11.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
   .day-tooltip .dt-prof{font-weight:600;}
   .day-tooltip .dt-meta{opacity:.85;}
   .day-tooltip .dt-done{font-weight:700;}
@@ -1404,6 +1407,7 @@ function renderOrderTooltipHtml(o){
   return `
     <div class="ot-date">${capitalize(fmtDateLong(o.date))}${o.horaire?' · '+escapeHtml(o.horaire):''}</div>
     <div class="ot-title"><i class="ot-prof-dot" style="background:${profColor.border};"></i>${escapeHtml(o.prof)}</div>
+    ${o.titre ? `<div class="ot-tp">${escapeHtml(o.titre)}</div>` : ''}
     <div class="ot-meta">${[o.classe, o.salle?('Salle '+o.salle):null].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</div>
     ${itemsHtml ? `<ul>${itemsHtml}${extra>0?`<li class="ot-more">+${extra} autre(s)</li>`:''}</ul>` : '<div class="ot-meta">Aucun matériel renseigné</div>'}
     ${o.protocoleTitre ? `<div class="ot-notes">Protocole : ${escapeHtml(o.protocoleTitre)}</div>` : ''}
@@ -1447,7 +1451,7 @@ function renderDayTooltipHtml(iso){
     const meta = [o.classe, o.salle ? ('Salle '+o.salle) : null].filter(Boolean).map(escapeHtml).join(' · ');
     return `<li class="${o.prepared ? 'dt-prepared' : ''}" style="border-left-color:${c.border};background:${c.bg};color:${c.text};">`
       + (o.horaire ? `<span class="dt-time">${escapeHtml(o.horaire)}</span>` : '')
-      + `<span><span class="dt-prof">${escapeHtml(o.prof)}</span>${meta ? ` <span class="dt-meta">· ${meta}</span>` : ''}${o.prepared ? ' <span class="dt-done">✓</span>' : ''}</span></li>`;
+      + `<span class="dt-main"><span class="dt-prof">${escapeHtml(o.prof)}</span>${meta ? ` <span class="dt-meta">· ${meta}</span>` : ''}${o.prepared ? ' <span class="dt-done">✓</span>' : ''}${o.titre ? `<span class="dt-title">${escapeHtml(o.titre)}</span>` : ''}</span></li>`;
   }).join('');
   const extra = list.length - MAX;
   const ferie = jourFerieLabel(iso), vac = vacanceInfo(iso);
