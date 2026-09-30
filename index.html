@@ -153,6 +153,10 @@
   .month-picker-grid button:hover{border-color:var(--teal);background:var(--teal-pale);}
   .month-picker-grid button.current{background:var(--teal-dark);border-color:var(--teal-dark);color:#fff;}
   .agenda-month-nav{display:flex;align-items:center;gap:6px;}
+.agenda-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto;}
+.agenda-actions .dl-menu-wrap{margin-left:0;}
+.agenda-actions .cat-toggle-all{min-width:182px;text-align:center;box-sizing:border-box;}
+
   .agenda-month-nav button{
     font-family:'IBM Plex Mono',monospace;font-size:15px;background:var(--surface);
     border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 11px;cursor:pointer;color:var(--ink);
@@ -1716,7 +1720,7 @@ function renderAgenda(){
     if(profVal!=='tous' && o.prof!==profVal) return false;
     if(classeVal!=='toutes' && o.classe!==classeVal) return false;
     return true;
-  }).sort((a,b)=>a.date.localeCompare(b.date));
+  }).sort((a,b)=> window._agendaSortDir==='desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
 
   // Mois disponibles (avec au moins une commande), pour la navigation rapide dans le temps.
   const monthCounts = new Map();
@@ -1737,6 +1741,7 @@ function renderAgenda(){
   const monthLabel = mkey => capitalize(fmtMonthKey(mkey+'-01'));
   const curIdx = monthKeys.indexOf(monthVal);
   const groupBy = window._agendaGroupBy==='enseignant' ? 'enseignant' : 'mois';
+  const sortDesc = window._agendaSortDir==='desc';
 
   let filtersHtml = `
     ${renderProfLegend(profs)}
@@ -1757,6 +1762,9 @@ function renderAgenda(){
         </select>
         <button type="button" id="agenda-month-next" title="Mois suivant (avec commandes)" ${monthKeys.length===0 || curIdx===monthKeys.length-1?'disabled':''}>›</button>
       </div>
+      <div class="agenda-actions">
+      <button type="button" class="cat-toggle-all" id="agenda-sort-toggle" title="Inverser l'ordre de tri des dates">${sortDesc ? '↓ Plus récentes d\'abord' : '↑ Plus anciennes d\'abord'}</button>
+      <button type="button" class="cat-toggle-all" id="agenda-group-toggle">${groupBy==='enseignant' ? '📅 Grouper par mois' : '👤 Grouper par enseignant'}</button>
       <div class="dl-menu-wrap" id="agenda-dl-wrap">
         <button type="button" class="download-btn" id="agenda-dl-toggle">⬇ Télécharger (${list.length})</button>
         <div class="dl-menu" id="agenda-dl-menu" style="display:none;">
@@ -1764,7 +1772,7 @@ function renderAgenda(){
           <button type="button" data-format="pdf">🖶 Document PDF</button>
         </div>
       </div>
-      <button type="button" class="cat-toggle-all" id="agenda-group-toggle">${groupBy==='enseignant' ? '📅 Grouper par mois' : '👤 Grouper par enseignant'}</button>
+      </div>
     </div>`;
 
   let body;
@@ -2902,6 +2910,13 @@ function attachContentHandlers(){
       const idx = opts.indexOf(window._agendaMonthFilter);
       if(idx===-1){ window._agendaMonthFilter = opts[0]; render(); }
       else if(idx<opts.length-1){ window._agendaMonthFilter = opts[idx+1]; render(); }
+    });
+  }
+  const agendaSortBtn = document.getElementById('agenda-sort-toggle');
+  if(agendaSortBtn){
+    agendaSortBtn.addEventListener('click', ()=>{
+      window._agendaSortDir = (window._agendaSortDir==='desc') ? 'asc' : 'desc';
+      render();
     });
   }
   const agendaGroupBtn = document.getElementById('agenda-group-toggle');
