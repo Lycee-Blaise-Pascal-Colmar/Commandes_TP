@@ -1099,6 +1099,12 @@ function connectRealtime(){
         localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
         seenOrdersInitialized = true;
       }
+      if(!snap.metadata.fromCache && all.length>0){
+        const existingIds = new Set(all.map(o=>o.id));
+        let purged = false;
+        seenOrderIds.forEach(id=>{ if(!existingIds.has(id)){ seenOrderIds.delete(id); purged = true; } });
+        if(purged) localStorage.setItem('seenOrderIds', JSON.stringify([...seenOrderIds]));
+      }
       statusEl.textContent = 'Connecté — mise à jour en temps réel';
       statusEl.className = 'conn-status ok';
       render();
@@ -1241,8 +1247,8 @@ async function updateOrderAndAdjustStock(order, newData){
 async function moveOrderToDate(order, newIso){
   try{
     await updateOrderAndAdjustStock(order, {
-      prof: order.prof, date: newIso, classe: order.classe, horaire: order.horaire, salle: order.salle,
-      items: order.items, notes: order.notes,
+      prof: order.prof, date: newIso, classe: order.classe||'', horaire: order.horaire||'', salle: order.salle||'',
+      items: order.items||[], notes: order.notes||'',
       protocoleTitre: order.protocoleTitre || null, protocoleLien: order.protocoleLien || null
     });
   }catch(err){
@@ -1336,8 +1342,8 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<'
 /* ---------- Petit éditeur de texte enrichi (gras / italique / souligné) pour les remarques ---------- */
 const RTE_ALLOWED_TAGS = { B:'b', STRONG:'b', I:'i', EM:'i', U:'u' };
 function sanitizeRichText(html){
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html || '';
+  // DOMParser crée un document inerte : rien n'est exécuté ni chargé pendant l'analyse (contrairement à innerHTML).
+  const tmp = new DOMParser().parseFromString(String(html || ''), 'text/html').body;
   function walk(node){
     let out = '';
     node.childNodes.forEach(child=>{
@@ -1362,8 +1368,7 @@ function sanitizeRichText(html){
   return walk(tmp).replace(/(<br>\s*)+$/,''); // pas de retours à la ligne vides en fin de texte
 }
 function richTextToPlain(html){
-  const tmp = document.createElement('div');
-  tmp.innerHTML = (html || '').replace(/<br\s*\/?>/gi, '\n');
+  const tmp = new DOMParser().parseFromString(String(html || '').replace(/<br\s*\/?>/gi, '\n'), 'text/html').body;
   return (tmp.textContent || '').trim();
 }
 
@@ -2584,7 +2589,7 @@ function renderSlip(o){
       </div>
       ${itemsHtml?`<ul class="items-list">${itemsHtml}</ul>`:''}
       ${o.protocoleTitre?`<div class="notes">Protocole : <a href="${escapeHtml(o.protocoleLien)}" target="_blank" rel="noopener">${escapeHtml(o.protocoleTitre)}</a></div>`:''}
-      ${o.notes?`<div class="notes">${o.notes}</div>`:''}
+      ${o.notes?`<div class="notes">${sanitizeRichText(o.notes)}</div>`:''}
       <div class="slip-actions">
         <button type="button" data-action="edit-order" data-id="${o.id}">modifier</button>
         <button type="button" data-action="duplicate" data-id="${o.id}">dupliquer</button>
@@ -3957,7 +3962,7 @@ function printOrderRowHtml(o){
     materielParts.push(`<ul>${o.items.map(it=>`<li>${escapeHtml(it.name)} — ${it.qty} ${escapeHtml(it.unit)}</li>`).join('')}</ul>`);
   }
   if(o.protocoleTitre) materielParts.push(`<div class="print-protocole">Protocole : ${escapeHtml(o.protocoleTitre)}</div>`);
-  if(o.notes) materielParts.push(`<div class="print-notes">${o.notes}</div>`);
+  if(o.notes) materielParts.push(`<div class="print-notes">${sanitizeRichText(o.notes)}</div>`);
   const materiel = materielParts.join('') || '&nbsp;';
   // Chaque commande est un bloc de type "div" (et non une ligne de <table>) afin que
   // page-break-inside:avoid / break-inside:avoid soit bien respecté par le navigateur à l'impression :
