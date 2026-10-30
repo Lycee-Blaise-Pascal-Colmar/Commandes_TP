@@ -655,6 +655,10 @@
     #print-area h1{font-size:21px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;}
     #print-area h3.print-day-heading{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;page-break-after:avoid;break-after:avoid;}
     #print-area h3.print-day-heading:first-of-type{margin-top:0;}
+    /* Le titre du jour et son tableau forment un bloc qui n'est pas coupé en fin de page :
+       s'il ne tient pas dans l'espace restant, il démarre sur une nouvelle page.
+       (Si un jour est plus long qu'une page entière, il se poursuit normalement sur la suivante.) */
+    #print-area .print-day-block{page-break-inside:avoid;break-inside:avoid;}
     #print-area .print-table{width:100%;margin-bottom:14px;border:1px solid #000;border-bottom:none;page-break-inside:auto;break-inside:auto;}
     #print-area .print-row{display:grid;grid-template-columns:13% 20% 17% 50%;}
     #print-area .print-cell{border-right:1px solid #000;border-bottom:1px solid #000;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:break-word;}
@@ -4126,21 +4130,6 @@ async function exportOrdersPdf(title, list, filename){
 
     groups.forEach(g=>{
       const headingText = capitalize(fmtDateLong(g.date));
-      // On s'assure qu'il reste la place pour l'intitulé du jour ET au moins le début
-      // d'une ligne avant de l'écrire, sinon il démarre proprement sur la page suivante.
-      if(y + 18 > pageHeight - 16){
-        doc.addPage();
-        y = 16;
-      }
-      doc.setFont('helvetica','bold');
-      doc.setFontSize(12);
-      doc.text(headingText, marginX, y);
-      y += 1.5;
-      doc.setDrawColor(0,0,0);
-      doc.setLineWidth(0.3);
-      doc.line(marginX, y, pageWidth-marginX, y);
-      y += 3;
-
       const body = g.orders.map(o=>{
         const classeSalleParts = [];
         if(o.classe) classeSalleParts.push(o.classe);
@@ -4164,8 +4153,8 @@ async function exportOrdersPdf(title, list, filename){
         ];
       });
 
-      doc.autoTable({
-        startY: y,
+      const tableOptions = startY => ({
+        startY,
         margin: {left: marginX, right: marginX},
         head: [['Enseignant','Titre du TP','Classe et salle','Matériel']],
         body,
@@ -4180,6 +4169,38 @@ async function exportOrdersPdf(title, list, filename){
           3: {cellWidth: tableWidth*0.47}
         }
       });
+
+      // Mesure à blanc de la hauteur du tableau du jour (sur un document temporaire) :
+      // s'il tient sur une page mais pas dans l'espace restant, le jour (intitulé + tableau)
+      // démarre sur une nouvelle page plutôt que d'être coupé en fin de page.
+      const headingBlockH = 4.5; // intitulé + filet + espace avant le tableau
+      const bottomLimit = pageHeight - 10; // marge basse par défaut d'autoTable
+      const probe = new jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+      probe.autoTable(tableOptions(16 + headingBlockH));
+      const fitsOnOnePage = probe.internal.getNumberOfPages() === 1;
+      const tableH = probe.lastAutoTable.finalY - (16 + headingBlockH);
+      if(y + headingBlockH + tableH > bottomLimit){
+        if(fitsOnOnePage && y > 16){
+          doc.addPage();
+          y = 16;
+        }else if(y + 18 > pageHeight - 16){
+          // Jour plus long qu'une page : il se poursuit sur plusieurs pages, mais on évite
+          // d'écrire l'intitulé tout en bas de page.
+          doc.addPage();
+          y = 16;
+        }
+      }
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(12);
+      doc.text(headingText, marginX, y);
+      y += 1.5;
+      doc.setDrawColor(0,0,0);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, y, pageWidth-marginX, y);
+      y += 3;
+
+      doc.autoTable(tableOptions(y));
       y = doc.lastAutoTable.finalY + 8;
     });
   }
