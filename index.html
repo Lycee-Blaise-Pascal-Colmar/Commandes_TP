@@ -1196,6 +1196,8 @@ function fmtMonthKey(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 }
+// Arrondit une quantité à 3 décimales pour éviter les artefacts de calcul flottant (ex. 2 - 1,1).
+function roundQty(n){ return Math.round((Number(n)||0)*1000)/1000; }
 function findCatalogueMatch(itemName){
   return catalogue.find(c=>(c.nom||'').toLowerCase()===String(itemName||'').trim().toLowerCase());
 }
@@ -1220,7 +1222,7 @@ async function createOrderAndDeductStock(orderData){
     reads.forEach((snap, idx)=>{
       if(!snap.exists) return;
       const current = snap.data().quantite;
-      const newQty = (current!=null ? current : 0) - itemRefs[idx].qty;
+      const newQty = roundQty((current!=null ? current : 0) - itemRefs[idx].qty);
       tx.update(itemRefs[idx].ref, { quantite:newQty, updatedAt: Date.now() });
     });
     tx.set(newOrderRef, { ...orderData, stockDeducted:true, createdAt: Date.now() });
@@ -1252,7 +1254,7 @@ async function updateOrderAndAdjustStock(order, newData){
     reads.forEach((snap, idx)=>{
       if(!snap.exists) return;
       const current = snap.data().quantite;
-      const newQty = (current!=null ? current : 0) + entries[idx].delta;
+      const newQty = roundQty((current!=null ? current : 0) + entries[idx].delta);
       tx.update(entries[idx].ref, { quantite:newQty, updatedAt: Date.now() });
     });
     tx.update(orderRef, { ...newData, stockDeducted:true, updatedAt: Date.now() });
@@ -1302,7 +1304,7 @@ async function deleteOrderAndRestoreStock(order){
       reads.forEach((snap, idx)=>{
         if(!snap.exists) return;
         const current = snap.data().quantite;
-        const newQty = (current!=null ? current : 0) + itemRefs[idx].qty;
+        const newQty = roundQty((current!=null ? current : 0) + itemRefs[idx].qty);
         tx.update(itemRefs[idx].ref, { quantite:newQty, updatedAt: Date.now() });
       });
       tx.delete(ordersCol.doc(order.id));
@@ -2136,7 +2138,7 @@ function renderStats(){
       if(!key) return;
       const cur = articleCounts.get(key) || { count:0, qty:0, unit:it.unit||'' };
       cur.count++;
-      cur.qty += Number(it.qty)||0;
+      cur.qty = roundQty(cur.qty + (Number(it.qty)||0));
       articleCounts.set(key, cur);
     });
   });
@@ -2533,7 +2535,7 @@ function renderCatalogue(){
             </div>
             <div class="field">
               <label for="c-qty">Quantité disponible</label>
-              <input type="number" id="c-qty" min="0" step="1" placeholder="Ex. 50">
+              <input type="number" id="c-qty" min="0" step="any" placeholder="Ex. 50">
             </div>
             <div class="field">
               <label for="c-unit">Unité</label>
@@ -2574,7 +2576,7 @@ function renderCatEditRow(it, categories, salles){
       <div></div>
       <div class="cat-edit-fields">
         <input type="text" id="edit-cat-nom" value="${escapeHtml(it.nom||'')}" placeholder="Nom du matériel">
-        <input type="number" id="edit-cat-qty" value="${it.quantite!=null?it.quantite:''}" placeholder="Quantité" step="1">
+        <input type="number" id="edit-cat-qty" value="${it.quantite!=null?it.quantite:''}" placeholder="Quantité" step="any">
         <input type="text" id="edit-cat-unit" value="${escapeHtml(it.unite||'')}" placeholder="Unité" list="cat-units-list">
         <select id="edit-cat-category">
           <option value="">Aucune</option>
@@ -3895,7 +3897,7 @@ function addModalItemRow(containerId, prefill){
       </select>
       <input type="text" placeholder="Nom du matériel" class="it-name" list="${dlId}" value="${prefill&&prefill.name?escapeHtml(prefill.name):''}">
     </div>
-    <input type="number" min="0" step="1" placeholder="Qté" class="it-qty" value="${prefill&&prefill.qty!=null?prefill.qty:''}">
+    <input type="number" min="0" step="any" inputmode="decimal" placeholder="Qté" class="it-qty" value="${prefill&&prefill.qty!=null?prefill.qty:''}">
     <select class="it-unit">${UNITS.map(u=>`<option value="${u}" ${prefill&&prefill.unit===u?'selected':''}>${u}</option>`).join('')}</select>
     <button type="button">✕</button>
     <datalist id="${dlId}"></datalist>`;
